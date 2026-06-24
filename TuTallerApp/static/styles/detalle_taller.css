@@ -1,0 +1,129 @@
+/* Fondo general de la sección */
+.detalle-taller-background {
+    /* background: linear-gradient(105deg, #09175a87 0%, #032b5a91 100%); */
+    min-height: 100vh;
+    padding: 40px 0;
+    
+}
+
+.detalle-taller-container {
+    max-width: 880px;
+    margin: 30px auto;
+    background: #0916d451;
+    border-radius: 13px;
+    box-shadow: 0 4px 36px 0 rgba(44, 78, 173, 0.09);
+    padding: 36px 40px;
+    display: flex;
+    gap: 36px;
+    align-items: stretch;
+    flex-wrap: wrap;  
+}
+
+.detalle-taller-imgbox {
+    flex: 0 0 300px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.detalle-taller-img {
+    width: 280px;
+    height: 210px;
+    object-fit: cover;
+    border-radius: 11px;
+    background: #f6f7fa;
+    border: 1px solid #eef1f7;
+    box-shadow: 0 2px 10px 0 rgba(50, 90, 180, 0.06);
+}
+
+.detalle-taller-info {
+    flex: 1 1 320px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+}
+
+.descripcion-lista {
+    margin: 18px 0;
+    padding-left: 12px;
+    color: rgb(255, 255, 255);
+    font-size: 1.04rem;
+    list-style: none;         /* Quitar las viñetas estándar */
+}
+
+/* Título principal */
+.detalle-taller-title {
+    font-size: 2rem;
+    color: #edeeef;
+    font-weight: 800;
+    margin: 0 0 10px 0;
+    letter-spacing: 0.8px;
+}
+
+/* Línea de dirección y teléfono */
+.detalle-taller-linea {
+    color: #ffffff;
+    font-size: 1.07rem;
+    margin-bottom: 6px;
+}
+
+/* Descripción */
+.detalle-taller-desc, .detalle-taller-adicional {
+    margin-top: 18px;
+    padding: 14px 16px;
+    background: #f5f8fa;
+    border-radius: 7px;
+    border-left: 4px solid #3070db;
+}
+.detalle-taller-desc h2,
+.detalle-taller-adicional h2 {
+    font-size: 1.11rem;
+    color: #f4f4f4;
+    margin-bottom: 7px;
+    font-weight: 600;
+}
+.detalle-taller-desc p,
+.detalle-taller-adicional p {
+    margin-bottom: 0;
+    color: #f9fafb;
+    font-size: 1.02rem;
+}
+
+/* Botón volver */
+.detalle-taller-btn-volver {
+    display: inline-block;
+    margin: 28px 0 0 0;
+    padding: 9px 22px;
+    border-radius: 22px;
+    background: #245cdc;
+    color: #fff;
+    font-weight: 500;
+    font-size: 16px;
+    text-decoration: none;
+    border: none;
+    box-shadow: 0 1px 5px 0 rgba(80, 130, 220, 0.08);
+    transition: background 0.19s;
+}
+.detalle-taller-btn-volver:hover {
+    background: #14345d;
+    color: #fff;
+}
+
+/* Responsive para móviles */
+@media (max-width: 750px) {
+    .detalle-taller-container {
+        flex-direction: column;
+        padding: 22px 8px;
+        gap: 18px;
+    }
+    .detalle-taller-imgbox {
+        margin-bottom: 15px;
+        justify-content: flex-start;
+    }
+    .detalle-taller-img {
+        width: 100%;
+        max-width: 340px;
+        height: 170px;
+    }
+}

@@ -1,0 +1,249 @@
+@import url('https://fonts.googleapis.com/css2?family=Berkshire+Swash&family=Exile&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Merienda:wght@300..900&family=Metal+Mania&family=Nosifer&family=Press+Start+2P&family=Rosarivo:ital@0;1&family=Saira+Condensed:wght@100;200;300;400;500;600;700;800;900&family=VT323&display=swap');
+
+/* ================= RESET ================= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* ================= BODY ================= */
+body {
+    min-height: 100vh;
+    width: 100%;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    background: url('/static/img/fondo.png');
+}
+
+/* ================= MAIN ================= */
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-top: 80px;
+    margin-bottom: 20px;
+}
+
+/* ================= FONDO HOME ================= */
+.fondo_home {
+    background: url('/static/img/fondo.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center;
+}
+
+/* ================= HEADER ================= */
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 70px;
+    padding: 0 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #2a1f79;
+    z-index: 1000;
+    font-family: 'Saira Condensed', sans-serif;
+}
+
+/* LOGO NAV */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.logo img {
+    height: 40px;      /* 👈 tamaño correcto */
+    width: auto;
+    object-fit: contain;
+}
+
+.logo h1 {
+    font-size: 1.3rem; /* 👈 reduce el texto */
+    color: #ffffff;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+
+/* ================= NAV ================= */
+.nav {
+    display: flex;
+    align-items: center;
+}
+
+.nav a {
+    font-size: 1.1rem;
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 500;
+    margin-left: 2rem;
+}
+
+.nav a:hover {
+    text-decoration: underline;
+}
+
+/* ================= NAV DERECHO ================= */
+.btn-i {
+    font-size: 1rem;
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 500;
+    margin-left: 0.5rem;
+    border: 1px solid #ffffff;
+    padding: 0.3rem 0.6rem;
+    border-radius: 5px;
+}
+
+.btn-i:hover {
+    background: #ffffff;
+    color: #2a1f79;
+    transition: .3s ease;
+}
+
+.bienvenida {
+    font-size: 0.95rem;
+    color: #ffffff;
+    margin-left: 0.5rem;
+}
+
+/* ================= MENU HAMBURGUESA ================= */
+
+#check {
+    display: none;
+}
+
+.icons {
+    font-size: 2.3rem;
+    color: #ffffff;
+    cursor: pointer;
+    display: none;
+    z-index: 1100;
+}
+
+#menu-icon {
+    display: block;
+}
+
+#close-icon {
+    display: none;
+}
+
+/* ================= FOOTER ================= */
+.footer {
+    width: 100%;
+    background: #2a1f79;
+}
+
+.footer .grupo-1 {
+    max-width: 1200px;
+    margin: auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-gap: 30px;
+    padding: 25px 0; /* 👈 antes 40–45px */
+}
+
+.footer .grupo-1 .box figure img {
+    max-width: 160px;   /* 👈 controla el tamaño */
+    width: 100%;
+    height: auto;
+}
+
+.footer .grupo-1 .box h2 {
+    color: #ffffff;
+    font-size: 1.4rem;
+    margin-bottom: 15px;
+}
+
+.footer .grupo-1 .box p {
+    color: #dddddd;
+    font-size: 1rem;
+}
+
+.footer .grupo-2 {
+    padding: 15px 10px;
+    text-align: center;
+    color: #ffffff;
+    background: #1b144f;
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 900px) {
+    .footer .grupo-1 {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+}
+
+@media (max-width: 768px) {
+
+    .icons {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .nav {
+        position: absolute;
+        top: 70px;
+        left: 0;
+        width: 100%;
+        background: #2a1f79;
+        flex-direction: column;
+        align-items: center;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height .4s ease;
+    }
+
+    .nav a {
+        width: 100%;
+        text-align: center;
+        padding: 1rem 0;
+        border-top: 1px solid rgba(255,255,255,0.2);
+        margin: 0;
+    }
+
+    .nav a:hover {
+        background: rgba(255,255,255,0.1);
+    }
+
+    #check:checked ~ .nav {
+        max-height: 350px;
+    }
+
+    #check:checked ~ .icons #menu-icon {
+        display: none;
+    }
+
+    #check:checked ~ .icons #close-icon {
+        display: block;
+    }
+}
+
+
+/* ===== FORZAR TAMAÑO DEL LOGO (OVERRIDE TOTAL) ===== */
+
+.header .logo img,
+.header .logo svg {
+    max-height: 40px !important;
+    height: 40px !important;
+    width: auto !important;
+    object-fit: contain !important;
+}
+
+.header .logo {
+    max-height: 40px;
+    overflow: hidden;
+}
+

@@ -1,0 +1,126 @@
+/* Fondo general de la sección */
+.detalle-lavadero-background {
+    /* background: linear-gradient(105deg, #09175a87 0%, #032b5a91 100%); */
+    min-height: 100vh;
+    padding: 40px 0;
+}
+.descripcion-lista {
+    margin: 18px 0;
+    padding-left: 12px;
+    color: rgb(251, 251, 252);
+    font-size: 1.04rem;
+    list-style: none;         /* Quitar las viñetas estándar */
+}
+.detalle-lavadero-container {
+    max-width: 880px;
+    margin: 30px auto;
+    background: #120678ab;
+    border-radius: 13px;
+    box-shadow: 0 4px 36px 0 rgba(30, 78, 193, 0.09);
+    padding: 36px 40px;
+    display: flex;
+    gap: 36px;
+    align-items: stretch;
+    flex-wrap: wrap;
+}
+
+.detalle-lavadero-imgbox {
+    flex: 0 0 300px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.detalle-lavadero-img {
+    width: 280px;
+    height: 210px;
+    object-fit: cover;
+    border-radius: 9px;
+    background: #f2f2f2;
+    border: 1px solid #eee;
+    box-shadow: 0 2px 10px 0 rgba(50, 90, 220, 0.05);
+}
+
+.detalle-lavadero-info {
+    flex: 1 1 320px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+}
+
+/* Título principal */
+.detalle-lavadero-title {
+    font-size: 2rem;
+    color: #ffffff;
+    font-weight: 800;
+    margin: 0 0 10px 0;
+    letter-spacing: 0.8px;
+}
+
+/* Línea de dirección y teléfono */
+.detalle-lavadero-linea {
+    color: #eff0f3;
+    font-size: 1.07rem;
+    margin-bottom: 6px;
+}
+
+/* Descripción */
+.detalle-lavadero-desc, .detalle-lavadero-adicional {
+    margin-top: 18px;
+    padding: 14px 16px;
+    background: #f5f7fa;
+    border-radius: 7px;
+    border-left: 4px solid #35b26b;
+}
+.detalle-lavadero-desc h2,
+.detalle-lavadero-adicional h2 {
+    font-size: 1.11rem;
+    color: #22637c;
+    margin-bottom: 7px;
+    font-weight: 600;
+}
+.detalle-lavadero-desc p,
+.detalle-lavadero-adicional p {
+    margin-bottom: 0;
+    color: #234;
+    font-size: 1rem;
+}
+
+/* Botón volver */
+.detalle-lavadero-btn-volver {
+    display: inline-block;
+    margin: 28px 0 0 0;
+    padding: 9px 22px;
+    border-radius: 24px;
+    background: #3070db;
+    color: #fff;
+    font-weight: 500;
+    font-size: 16px;
+    text-decoration: none;
+    border: none;
+    box-shadow: 0 1px 5px 0 rgba(80, 130, 220, 0.08);
+    transition: background 0.19s;
+}
+.detalle-lavadero-btn-volver:hover {
+    background: #1a3863;
+    color: #fff;
+}
+
+/* Responsive para móviles */
+@media (max-width: 750px) {
+    .detalle-lavadero-container {
+        flex-direction: column;
+        padding: 20px 8px;
+        gap: 20px;
+    }
+    .detalle-lavadero-imgbox {
+        margin-bottom: 16px;
+        justify-content: flex-start;
+    }
+    .detalle-lavadero-img {
+        width: 100%;
+        max-width: 340px;
+        height: 170px;
+    }
+}

@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dejar Reseña{% endblock %}
+
+{% block content %}
+<style>
+    .stars {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: center;
+        gap: 5px;
+    }
+
+    .stars input {
+        display: none;
+    }
+
+    .stars label {
+        font-size: 2.5rem;
+        color: #ccc;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+
+    .stars input:checked ~ label,
+    .stars label:hover,
+    .stars label:hover ~ label {
+        color: gold;
+    }
+</style>
+
+<div style="max-width:600px;margin:120px auto;background:white;padding:30px;border-radius:15px;box-shadow:0 10px 25px rgba(0,0,0,.15);">
+
+    <h2 style="text-align:center;margin-bottom:20px;">
+        Reseña para <strong>{{ cita.taller }}</strong>
+    </h2>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <label style="font-weight:600;">Calificación</label>
+
+        <div class="stars">
+            <input type="radio" id="star5" name="calificacion" value="5" required>
+            <label for="star5">★</label>
+
+            <input type="radio" id="star4" name="calificacion" value="4">
+            <label for="star4">★</label>
+
+            <input type="radio" id="star3" name="calificacion" value="3">
+            <label for="star3">★</label>
+
+            <input type="radio" id="star2" name="calificacion" value="2">
+            <label for="star2">★</label>
+
+            <input type="radio" id="star1" name="calificacion" value="1">
+            <label for="star1">★</label>
+        </div>
+
+        <label style="font-weight:600;margin-top:20px;display:block;">Comentario</label>
+        <textarea name="comentario"
+                  required
+                  rows="4"
+                  placeholder="Escribe tu experiencia..."
+                  style="width:100%;padding:10px;border-radius:8px;border:1px solid #ccc;margin-bottom:20px;"></textarea>
+
+        <button type="submit"
+                style="width:100%;padding:12px;border:none;border-radius:10px;
+                       background:linear-gradient(135deg,#667eea,#764ba2);
+                       color:white;font-size:1rem;font-weight:600;">
+            Enviar reseña
+        </button>
+    </form>
+</div>
+{% endblock %}

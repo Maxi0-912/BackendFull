@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Agendar Cita{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card-glass shadow">
+
+            <h3 class="text-center mb-4">Agendar Cita</h3>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label>Fecha</label>
+                    {{ form.fecha }}
+                </div>
+
+                <div class="mb-3">
+                    <label>Hora</label>
+                    {{ form.hora }}
+                </div>
+
+                <div class="mb-3">
+                    <label>Descripción</label>
+                    {{ form.descripcion }}
+                </div>
+
+                <button class="btn btn-primary w-100">Guardar Cita</button>
+            </form>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

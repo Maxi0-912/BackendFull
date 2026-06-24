@@ -1,0 +1,87 @@
+/* Fondo general y fuente */
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    /* background-color: #f7faff; */
+    margin: 0;
+    padding: 0;
+}
+
+/* Contenedor del formulario */
+form {
+    background: #ffffff;
+    max-width: 400px;
+    margin: 32px auto;
+    padding: 32px 36px 28px 36px;
+    border-radius: 8px;
+    box-shadow: 0 2px 16px 0 rgba(34, 54, 90, 0.09);
+    border: 1px solid #e4e4e4;
+}
+
+/* Título */
+h2 {
+    text-align: center;
+    color: #204078;
+    margin-bottom: 26px;
+    font-weight: 600;
+    letter-spacing: 0.25px;
+    font-size: 1.5rem;
+}
+
+/* Etiquetas */
+form label {
+    display: block;
+    color: #333;
+    font-size: 1rem;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+/* Entradas, select y textarea */
+form input,
+form textarea,
+form select {
+    width: 100%;
+    padding: 9px 11px;
+    margin-bottom: 18px;
+    border: 1px solid #d6d9e6;
+    border-radius: 5px;
+    font-size: 15px;
+    background: #f9fafc;
+    transition: border 0.2s;
+}
+
+form input:focus,
+form textarea:focus,
+form select:focus {
+    border-color: #3070db;
+    background: #fff;
+    outline: none;
+}
+
+/* Botón */
+.btn {
+    background: #316be0;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 11px 27px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: block;
+    margin: 0 auto;
+}
+
+.btn:hover {
+    background: #254381;
+}
+
+/* Mensajes de error de Django */
+ul.errorlist {
+    color: #d54343;
+    margin: 0 0 7px 16px;
+    font-size: 14px;
+    list-style: disc;
+    padding-left: 15px;
+}

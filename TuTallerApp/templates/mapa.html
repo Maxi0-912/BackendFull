@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<style>
+/* ===== CONTENEDOR GENERAL ===== */
+.mapa-wrapper{
+    max-width: 1500px;
+    margin: 140px auto 60px auto; /* 🔑 auto = centrado */
+    padding: 25px;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(8px);
+    border-radius: 25px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* 🔑 centra contenido */
+}
+
+
+/* ===== TITULO ===== */
+.mapa-wrapper h2{
+    text-align: center;
+    color: #fff;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+}
+
+/* ===== MAPA ===== */
+#map{
+    width: 400%;
+    height: 650px;   /* 🔥 más grande */
+    border-radius: 20px;
+}
+</style>
+
+<div class="mapa-wrapper">
+    <h2>🌍 NUESTROS ALIADOS</h2>
+
+    <!-- DEBUG (puedes borrar luego) -->
+    <p style="color:white; text-align:center;">
+        Talleres: {{ talleres|length }} | Lavaderos: {{ lavaderos|length }}
+    </p>
+
+    <div id="map"></div>
+</div>
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+/* ===== MAPA BASE ===== */
+const map = L.map('map').setView([2.4419, -76.6065], 14);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+}).addTo(map);
+
+/* ===== ICONOS ===== */
+const iconTaller = L.icon({
+    iconUrl: "{% static 'img/tallerubi.webp' %}",
+    iconSize: [42, 42],        // tamaño realista
+    iconAnchor: [21, 42],      // punta del pin al suelo
+    popupAnchor: [0, -38],     // popup arriba
+});
+
+
+
+const iconLavadero = L.icon({
+    iconUrl: "{% static 'img/iconolavadero.jpg' %}",
+    iconSize: [38, 38],
+    iconAnchor: [19, 38],
+    popupAnchor: [0, -35]
+});
+
+/* ===== TALLERES ===== */
+{% for t in talleres %}
+L.marker(
+    [{{ t.latitud|floatformat:6 }}, {{ t.longitud|floatformat:6 }}],
+    {icon: iconTaller}
+)
+.addTo(map)
+.bindPopup(`
+    <strong>🔧 {{ t.nombre }}</strong><br>
+    {{ t.direccion }}<br>
+    📞 {{ t.telefono }}
+`);
+{% endfor %}
+
+/* ===== LAVADEROS ===== */
+{% for l in lavaderos %}
+L.marker(
+    [{{ l.latitud|floatformat:6 }}, {{ l.longitud|floatformat:6 }}],
+    {icon: iconLavadero}
+)
+.addTo(map)
+.bindPopup(`
+    <strong>🧼 {{ l.nombre }}</strong><br>
+    {{ l.direccion }}<br>
+    📞 {{ l.telefono }}
+`);
+{% endfor %}
+</script>
+
+{% endblock %}

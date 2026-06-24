@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=Berkshire+Swash&family=Exile&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Merienda:wght@300..900&family=Metal+Mania&family=Nosifer&family=Press+Start+2P&family=Rosarivo:ital@0;1&family=Saira+Condensed:wght@100;200;300;400;500;600;700;800;900&family=VT323&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    min-height: 100vh;
+}
+
+/* fondos */
+
+.fondo_register {
+    background: url('/static/img/fondo_registro.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center;
+}
+
+/* fondos */
+
+.fondo_login {
+    background: url('/static/img/fondo_registro.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center;
+}
+
+

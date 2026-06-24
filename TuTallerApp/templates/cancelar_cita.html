@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cancelar Cita{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'styles/agendar_cita.css' %}">
+{% endblock %}
+
+{% block content %}
+  <div class="form-container" style="max-width:400px;">
+    <h2>Cancelar Cita</h2>
+    <p style="text-align:center; margin-bottom:2rem;">
+      ¿Estás seguro que deseas cancelar esta cita con <strong>{{ cita.taller }}</strong>?
+    </p>
+    <form method="POST" style="display: flex; flex-direction: column; gap: 1rem;">
+      {% csrf_token %}
+      <button type="submit" class="btn-cancel">Sí, cancelar</button>
+      <a href="{% url 'mis_citas' %}" class="btn-volver">No, volver</a>
+    </form>
+  </div>
+{% endblock %}

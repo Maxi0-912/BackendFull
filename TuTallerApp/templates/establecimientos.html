@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card-glass shadow">
+    <h3>Talleres Disponibles</h3>
+
+    <div class="row">
+        {% for taller in talleres %}
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5>{{ taller.nombre }}</h5>
+                    <p>{{ taller.direccion }}</p>
+                    <a href="/detalle/{{ taller.id }}/" class="btn btn-primary">
+                        Ver detalles
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

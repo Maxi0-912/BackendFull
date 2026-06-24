@@ -1,0 +1,897 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block content %}
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tu Taller a un Clic - Juego del Ahorcado</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #dbeafe 0%, #c7d2fe 100%);
+            min-height: 100vh;
+            padding: 20px;
+            max-width: 100%;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header2 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header2 h1 {
+            color: #1f2937;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header2 h2 {
+            color: #6b7280;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+
+        .score {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #fef3c7;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            color: #92400e;
+        }
+
+        .game-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+        }
+
+        .panel h3 {
+            font-size: 1.2rem;
+            color: #374151;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .auto-container {
+            background: white;
+            border: 2px solid #bfdbfe;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .auto-svg {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            display: block;
+            transition: all 0.7s ease;
+        }
+
+        .auto-pulse {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .damage-status {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .damage-count {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .damage-description {
+            font-weight: bold;
+        }
+
+        .green { color: #059669; }
+        .orange { color: #d97706; }
+        .red { color: #dc2626; }
+        .red-pulse { color: #dc2626; animation: pulse 1s infinite; }
+
+        .new-game-btn {
+            width: 100%;
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .new-game-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .hint-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .hint-title {
+            font-weight: bold;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .hint-text {
+            color: #6b7280;
+        }
+
+        .word-display {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .word-letters {
+            font-size: 2.5rem;
+            font-family: monospace;
+            font-weight: bold;
+            color: #2563eb;
+            letter-spacing: 8px;
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+        }
+
+        .result-message {
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            transition: all 0.5s ease;
+        }
+
+        .result-win {
+            background: #d1fae5;
+            color: #065f46;
+            animation: bounce 0.5s ease;
+        }
+
+        .result-lose {
+            background: #fee2e2;
+            color: #991b1b;
+            animation: pulse 0.5s ease;
+        }
+
+        .result-emoji {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .result-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .result-word {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 8px 0;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 53%, 80%, 100% { transform: translateY(0); }
+            40%, 43% { transform: translateY(-20px); }
+            70% { transform: translateY(-10px); }
+            90% { transform: translateY(-5px); }
+        }
+
+        .keyboard {
+            margin-bottom: 20px;
+        }
+
+        .keyboard-title {
+            font-weight: bold;
+            color: #374151;
+            margin-bottom: 12px;
+        }
+
+        .keyboard-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+        }
+
+        .key-btn {
+            padding: 12px 8px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .key-available {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .key-available:hover {
+            background: #d1d5db;
+            transform: scale(1.05);
+        }
+
+        .key-correct {
+            background: #10b981;
+            color: white;
+        }
+
+        .key-incorrect {
+            background: #ef4444;
+            color: white;
+        }
+
+        .key-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .wrong-letters {
+            text-align: center;
+            margin-top: 16px;
+        }
+
+        .wrong-letters-text {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .wrong-letters-list {
+            color: #dc2626;
+            font-weight: bold;
+        }
+
+        .game-over-effects {
+            text-align: center;
+            margin-top: 16px;
+        }
+
+        .explosion {
+            font-size: 2rem;
+            animation: bounce 1s infinite;
+        }
+
+        .game-over-text {
+            color: #dc2626;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 8px 0;
+            animation: pulse 1s infinite;
+        }
+
+        .repair-text {
+            color: #d97706;
+            font-weight: bold;
+        }
+
+        /* .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #6b7280;
+            font-size: 0.9rem;
+        } */
+
+        @media (max-width: 768px) {
+            .game-container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .word-letters {
+                font-size: 2rem;
+                letter-spacing: 4px;
+            }
+            
+            .keyboard-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header2">
+            <h1>
+                <i class="fas fa-car"></i>
+                DESMANTELADO
+                <i class="fas fa-wrench"></i>
+            </h1>
+            <!-- <h2>Juego del Ahorcado - Mecánica Automotriz</h2> -->
+            <div class="score">
+                <i class="fas fa-trophy"></i>
+                <span>Puntos: <span id="score">0</span></span>
+            </div>
+        </div>
+
+        <!-- Game Container -->
+        <div class="game-container">
+            <!-- Left Panel - Car Status -->
+            <div class="panel">
+                <h3><i class="fas fa-car"></i> Estado del Auto</h3>
+                
+                <!-- Car SVG - INICIO DEL CÓDIGO SVG ACTUALIZADO Y MEJORADO -->
+                <div class="auto-container">
+                    <svg id="carSVG" class="auto-svg" width="400" height="200" viewBox="0 0 400 200">
+                        <!-- Fondo -->
+                        <rect width="400" height="200" fill="#f0f9ff" rx="10"/>
+                        
+                        <!-- Sombra del auto -->
+                        <ellipse cx="200" cy="170" rx="140" ry="20" fill="#000" opacity="0.1"/>
+                        
+                        <!-- Carrocería principal (más angular y moderna) - AZUL -->
+                        <path d="M50 130 L70 100 L130 80 L270 80 L330 100 L350 130 L350 150 L330 155 L70 155 L50 150 Z" 
+                              fill="#3b82f6" stroke="#1e40af" stroke-width="2"/>
+                        
+                        <!-- Techo (más aerodinámico) - AZUL OSCURO -->
+                        <path d="M80 100 L120 65 L280 65 L320 100 Z" 
+                              fill="#2563eb" stroke="#1e40af" stroke-width="2"/>
+                        
+                        <!-- Capó (más afilado) - AZUL CLARO -->
+                        <path d="M330 100 L370 120 L370 140 L350 145 L350 120 Z" 
+                              fill="#60a5fa" stroke="#3b82f6" stroke-width="1"/>
+                        
+                        <!-- Maletero (más afilado) - AZUL CLARO -->
+                        <path d="M50 130 L30 140 L30 150 L50 150 Z" 
+                              fill="#60a5fa" stroke="#3b82f6" stroke-width="1"/>
+                        
+                        <!-- Ventana delantera (más angular) -->
+                        <g id="frontWindow">
+                            <path d="M270 80 L320 100 L280 65 Z" 
+                                  fill="#87ceeb" stroke="#1e40af" stroke-width="2" opacity="0.8"/>
+                        </g>
+                        
+                        <!-- Ventana trasera (más angular) -->
+                        <g id="rearWindow">
+                            <path d="M130 80 L80 100 L120 65 Z" 
+                                  fill="#87ceeb" stroke="#1e40af" stroke-width="2" opacity="0.8"/>
+                        </g>
+                        
+                        <!-- Puerta delantera - AZUL -->
+                        <rect x="210" y="100" width="70" height="50" rx="3" 
+                              fill="#3b82f6" stroke="#1e40af" stroke-width="2"/>
+                        <!-- Manija puerta delantera - GRIS MODERNO -->
+                        <rect x="265" y="125" width="8" height="3" rx="1" fill="#9ca3af"/>
+                        
+                        <!-- Puerta trasera - AZUL -->
+                        <rect x="120" y="100" width="70" height="50" rx="3" 
+                              fill="#3b82f6" stroke="#1e40af" stroke-width="2"/>
+                        <!-- Manija puerta trasera - GRIS MODERNO -->
+                        <rect x="175" y="125" width="8" height="3" rx="1" fill="#9ca3af"/>
+                        
+                        <!-- Líneas de carrocería - GRIS SUTIL -->
+                        <line x1="70" y1="135" x2="330" y2="135" stroke="#9ca3af" stroke-width="1"/>
+                        
+                        <!-- Espejo retrovisor (más estilizado) -->
+                        <g id="mirror">
+                            <rect x="325" y="105" width="4" height="8" rx="2" fill="#374151"/>
+                            <path d="M329 109 L335 107 L335 111 Z" fill="#87ceeb" stroke="#1e40af" stroke-width="1"/>
+                        </g>
+                        
+                        <!-- Faro delantero (tipo LED, rectangular) -->
+                        <rect x="355" y="125" width="10" height="20" rx="2" fill="#fff" stroke="#f59e0b" stroke-width="2"/>
+                        <rect x="357" y="128" width="6" height="14" rx="1" fill="#fef3c7" opacity="0.9"/>
+                        
+                        <!-- Luz trasera (tipo LED, rectangular) -->
+                        <rect x="35" y="125" width="10" height="20" rx="2" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+                        <rect x="37" y="128" width="6" height="14" rx="1" fill="#b91c1c"/>
+                        
+                        <!-- Parrilla delantera (más grande y detallada) -->
+                        <rect x="340" y="115" width="15" height="30" rx="2" fill="#1f2937" stroke="#111827" stroke-width="1"/>
+                        <line x1="345" y1="120" x2="350" y2="120" stroke="#4b5563" stroke-width="1"/>
+                        <line x1="345" y1="125" x2="350" y2="125" stroke="#4b5563" stroke-width="1"/>
+                        <line x1="345" y1="130" x2="350" y2="130" stroke="#4b5563" stroke-width="1"/>
+                        <line x1="345" y1="135" x2="350" y2="135" stroke="#4b5563" stroke-width="1"/>
+                        <line x1="345" y1="140" x2="350" y2="140" stroke="#4b5563" stroke-width="1"/>
+                        
+                        <!-- Llanta delantera (más grande y con diseño moderno) -->
+                        <g id="frontTire">
+                            <circle cx="300" cy="155" r="28" fill="#1f2937"/>
+                            <circle cx="300" cy="155" r="22" fill="#374151"/>
+                            <circle cx="300" cy="155" r="16" fill="#6b7280"/>
+                            <circle cx="300" cy="155" r="10" fill="#9ca3af"/>
+                            <!-- Rayos de la llanta (más complejos) -->
+                            <g stroke="#d1d5db" stroke-width="2" fill="none">
+                                <line x1="290" y1="135" x2="310" y2="175"/>
+                                <line x1="310" y1="135" x2="290" y2="175"/>
+                                <line x1="300" y1="127" x2="300" y2="183"/>
+                                <line x1="277" y1="155" x2="323" y2="155"/>
+                                <line x1="285" y1="140" x2="315" y2="170"/>
+                                <line x1="315" y1="140" x2="285" y2="170"/>
+                            </g>
+                        </g>
+                        
+                        <!-- Llanta trasera (más grande y con diseño moderno) -->
+                        <g id="rearTire">
+                            <circle cx="100" cy="155" r="28" fill="#1f2937"/>
+                            <circle cx="100" cy="155" r="22" fill="#374151"/>
+                            <circle cx="100" cy="155" r="16" fill="#6b7280"/>
+                            <circle cx="100" cy="155" r="10" fill="#9ca3af"/>
+                            <!-- Rayos de la llanta (más complejos) -->
+                            <g stroke="#d1d5db" stroke-width="2" fill="none">
+                                <line x1="90" y1="135" x2="110" y2="175"/>
+                                <line x1="110" y1="135" x2="90" y2="175"/>
+                                <line x1="100" y1="127" x2="100" y2="183"/>
+                                <line x1="77" y1="155" x2="123" y2="155"/>
+                                <line x1="85" y1="140" x2="115" y2="170"/>
+                                <line x1="115" y1="140" x2="85" y2="170"/>
+                            </g>
+                        </g>
+                        
+                        <!-- Antena (más pequeña y discreta) -->
+                        <line x1="200" y1="65" x2="200" y2="58" stroke="#4b5563" stroke-width="1"/>
+                        <circle cx="200" cy="58" r="1.5" fill="#6b7280"/>
+
+                        <!-- Pequeño alerón/difusor trasero -->
+                        <path d="M30 150 L40 155 L40 160 L30 160 Z" fill="#1f2937" stroke="#111827" stroke-width="1"/>
+                        
+                        <!-- Efectos de humo -->
+                        <g id="smoke" style="display: none;">
+                            <circle cx="200" cy="50" r="8" fill="#6b7280" opacity="0.6">
+                                <animate attributeName="r" values="8;15;8" dur="2s" repeatCount="indefinite"/>
+                            </circle>
+                            <circle cx="180" cy="45" r="6" fill="#9ca3af" opacity="0.4">
+                                <animate attributeName="r" values="6;12;6" dur="1.5s" repeatCount="indefinite"/>
+                            </circle>
+                            <circle cx="220" cy="45" r="5" fill="#d1d5db" opacity="0.3">
+                                <animate attributeName="r" values="5;10;5" dur="1.8s" repeatCount="indefinite"/>
+                            </circle>
+                        </g>
+                        
+                        <!-- Estado del auto -->
+                        <text id="carStatus" x="200" y="30" text-anchor="middle" fill="#1f2937" font-size="14" font-weight="bold">
+                            🚗 AUTO DEPORTIVO PERFECTO
+                        </text>
+                    </svg>
+                    
+                    <div id="gameOverEffects" class="game-over-effects" style="display: none;">
+                        <div class="explosion">🔥💥🚗💥🔥</div>
+                        <p class="game-over-text">¡AUTO DESTRUIDO!</p>
+                        <p class="repair-text">¡Necesita reparación completa! 🔧</p>
+                    </div>
+                </div>
+                <!-- Car SVG - FIN DEL CÓDIGO SVG ACTUALIZADO Y MEJORADO -->
+
+                <!-- Damage Status -->
+                <div class="damage-status">
+                    <div id="damageCount" class="damage-count green">Daños: 0/5</div>
+                    <div id="damageDescription" class="damage-description green">🚗 ¡Auto Perfecto!</div>
+                </div>
+
+                <!-- New Game Button -->
+                <button class="new-game-btn" onclick="newGame()">
+                    <i class="fas fa-redo-alt"></i>
+                    Nueva Palabra
+                </button>
+            </div>
+
+            <!-- Right Panel - Game -->
+            <div class="panel">
+                <!-- Hint -->
+                <div class="hint-box">
+                    <div class="hint-title">Pista:</div>
+                    <div id="hint" class="hint-text">Cargando...</div>
+                </div>
+
+                <!-- Word Display -->
+                <div class="word-display">
+                    <h3>Palabra:</h3>
+                    <div id="wordDisplay" class="word-letters">_ _ _ _ _</div>
+                </div>
+
+                <!-- Result Message -->
+                <div id="resultMessage" class="result-message" style="display: none;">
+                    <div class="result-emoji">🎉</div>
+                    <h3 class="result-title">¡Excelente! ¡Ganaste!</h3>
+                    <p>La palabra era: <strong class="result-word">MOTOR</strong></p>
+                    <p class="result-points">+50 puntos 🏆</p>
+                </div>
+
+                <!-- Keyboard -->
+                <div class="keyboard">
+                    <h3 class="keyboard-title">Letras:</h3>
+                    <div id="keyboard" class="keyboard-grid">
+                        <!-- Buttons will be generated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Wrong Letters -->
+                <div id="wrongLettersContainer" class="wrong-letters" style="display: none;">
+                    <p class="wrong-letters-text">
+                        Letras incorrectas: 
+                        <span id="wrongLetters" class="wrong-letters-list"></span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <!-- <div class="footer">
+            <p>🔧 Aprende mecánica automotriz jugando 🚗</p>
+        </div> -->
+    </div>
+
+    <script>
+        // Palabras y pistas del juego
+        const wordsAndHints = [
+            { word: "MOTOR", hint: "Corazón del automóvil que convierte combustible en movimiento" },
+            { word: "FRENOS", hint: "Sistema de seguridad que detiene el vehículo" },
+            { word: "ACEITE", hint: "Lubricante esencial para el motor" },
+            { word: "BUJIA", hint: "Componente que genera la chispa para la combustión" },
+            { word: "RADIADOR", hint: "Sistema que mantiene la temperatura del motor" },
+            { word: "CLUTCH", hint: "Embrague que conecta y desconecta el motor de la transmisión" },
+            { word: "ALTERNADOR", hint: "Genera electricidad para cargar la batería" },
+            { word: "AMORTIGUADOR", hint: "Absorbe impactos y vibraciones de la suspensión" },
+            { word: "CARBURADOR", hint: "Mezcla aire y combustible en motores antiguos" },
+            { word: "PISTONES", hint: "Se mueven dentro de los cilindros del motor" },
+            { word: "VALVULAS", hint: "Controlan la entrada y salida de gases del cilindro" },
+            { word: "TURBO", hint: "Aumenta la potencia del motor usando gases de escape" },
+            { word: "BATERIA", hint: "Almacena energía eléctrica para arrancar el motor" },
+            { word: "FILTRO", hint: "Limpia el aire, aceite o combustible" },
+            { word: "ESCAPE", hint: "Sistema que expulsa gases de combustión" },
+            { word: "TRANSMISION", hint: "Sistema que transfiere potencia a las ruedas" },
+            { word: "SUSPENSION", hint: "Sistema que conecta las ruedas al chasis" },
+            { word: "DIFERENCIAL", hint: "Permite que las ruedas giren a diferentes velocidades" }
+        ];
+
+        // Variables del juego
+        let currentGame = null;
+        let guessedLetters = [];
+        let errors = 0;
+        let gameEnded = false;
+        let hasWon = false;
+        let score = 0;
+        const maxErrors = 5;
+
+        // Inicializar juego cuando se carga la página
+        function initGame() {
+            console.log('Inicializando juego...');
+            createKeyboard();
+            newGame();
+            console.log('Juego inicializado');
+        }
+
+        // Inicializar cuando el DOM esté listo
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initGame);
+        } else {
+            initGame();
+        }
+
+        // Crear teclado
+        function createKeyboard() {
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+            const keyboard = document.getElementById('keyboard');
+            
+            alphabet.forEach(letter => {
+                const button = document.createElement('button');
+                button.textContent = letter;
+                button.className = 'key-btn key-available';
+                button.onclick = () => guessLetter(letter);
+                button.id = `key-${letter}`;
+                keyboard.appendChild(button);
+            });
+        }
+
+        // Nuevo juego
+        function newGame() {
+            // Seleccionar juego aleatorio
+            const randomIndex = Math.floor(Math.random() * wordsAndHints.length);
+            currentGame = wordsAndHints[randomIndex];
+            
+            // Reset variables
+            guessedLetters = [];
+            errors = 0;
+            gameEnded = false;
+            hasWon = false;
+            
+            console.log('Nuevo juego:', currentGame); // Debug
+            
+            // Reset UI
+            const hintElement = document.getElementById('hint');
+            if (hintElement && currentGame) {
+                hintElement.textContent = currentGame.hint;
+            }
+            
+            const resultMessage = document.getElementById('resultMessage');
+            if (resultMessage) {
+                resultMessage.style.display = 'none';
+            }
+            
+            const wrongLettersContainer = document.getElementById('wrongLettersContainer');
+            if (wrongLettersContainer) {
+                wrongLettersContainer.style.display = 'none';
+            }
+            
+            const gameOverEffects = document.getElementById('gameOverEffects');
+            if (gameOverEffects) {
+                gameOverEffects.style.display = 'none';
+            }
+            // Reset keyboard
+            const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+            alphabet.forEach(letter => {
+                const button = document.getElementById(`key-${letter}`);
+                if (button) {
+                    button.className = 'key-btn key-available';
+                    button.disabled = false;
+                }
+            });
+            
+            // Actualizar displays
+            updateWordDisplay();
+            updateCarStatus();
+            updateDamageStatus();
+        }
+
+        // Adivinar letra
+        function guessLetter(letter) {
+            if (guessedLetters.includes(letter) || gameEnded) return;
+            
+            guessedLetters.push(letter);
+            
+            const button = document.getElementById(`key-${letter}`);
+            
+            if (currentGame.word.includes(letter)) {
+                button.className = 'key-btn key-correct key-disabled';
+            } else {
+                button.className = 'key-btn key-incorrect key-disabled';
+                errors++;
+                updateCarStatus();
+            }
+            
+            button.disabled = true;
+            
+            updateWordDisplay();
+            updateDamageStatus();
+            updateWrongLetters();
+            checkGameEnd();
+        }
+
+        // Actualizar visualización de palabra
+        function updateWordDisplay() {
+            if (!currentGame || !currentGame.word) {
+                console.error('No hay juego actual o palabra');
+                return;
+            }
+            
+            const display = currentGame.word.split('').map(letter => 
+                guessedLetters.includes(letter) ? letter : '_'
+            ).join(' ');
+            
+            const wordDisplayElement = document.getElementById('wordDisplay');
+            if (wordDisplayElement) {
+                wordDisplayElement.textContent = display;
+            }
+        }
+
+        // Actualizar estado del auto
+        function updateCarStatus() {
+            const carSVG = document.getElementById('carSVG');
+            const frontWindow = document.getElementById('frontWindow');
+            const rearWindow = document.getElementById('rearWindow');
+            const mirror = document.getElementById('mirror');
+            const frontTire = document.getElementById('frontTire');
+            const rearTire = document.getElementById('rearTire');
+            const smoke = document.getElementById('smoke');
+            const carStatus = document.getElementById('carStatus');
+            
+            // Add pulse effect if damaged
+            if (errors > 0) {
+                carSVG.classList.add('auto-pulse');
+            } else {
+                carSVG.classList.remove('auto-pulse');
+            }
+            
+            switch(errors) {
+                case 0:
+                    carStatus.textContent = "🚗 AUTO DEPORTIVO PERFECTO";
+                    break;
+                case 1:
+                    // Romper ventana delantera
+                    frontWindow.innerHTML = `
+                        <path d="M270 80 L320 100 L280 65 Z" 
+                              fill="#ff4444" opacity="0.8"/>
+                        <g stroke="#fff" stroke-width="3" fill="none">
+                            <line x1="275" y1="70" x2="315" y2="90"/>
+                            <line x1="315" y1="70" x2="275" y2="90"/>
+                            <line x1="295" y1="65" x2="295" y2="100"/>
+                        </g>
+                        <text x="295" y="85" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold">💥</text>
+                    `;
+                    carStatus.textContent = "💥 PARABRISAS DEPORTIVO ROTO";
+                    break;
+                case 2:
+                    // Caer espejo retrovisor
+                    mirror.innerHTML = `
+                        <rect x="325" y="105" width="4" height="8" rx="2" fill="#6b7280"/>
+                        <path d="M365 180 L371 178 L371 182 Z" fill="#6b7280" stroke="#1e40af" stroke-width="1"/>
+                        <text x="375" y="185" fill="#ef4444" font-size="10" font-weight="bold">💥</text>
+                    `;
+                    carStatus.textContent = "🪞 SIN ESPEJO DEPORTIVO";
+                    break;
+                case 3:
+                    // Romper ventana trasera
+                    rearWindow.innerHTML = `
+                        <path d="M130 80 L80 100 L120 65 Z" 
+                              fill="#ff4444" opacity="0.8"/>
+                        <g stroke="#fff" stroke-width="3" fill="none">
+                            <line x1="85" y1="70" x2="125" y2="90"/>
+                            <line x1="125" y1="70" x2="85" y2="90"/>
+                            <line x1="105" y1="65" x2="105" y2="100"/>
+                        </g>
+                        <text x="105" y="85" text-anchor="middle" fill="#fff" font-size="12" font-weight="bold">💥</text>
+                    `;
+                    carStatus.textContent = "💥💥 AMBAS VENTANAS DEPORTIVAS ROTAS";
+                    break;
+                case 4:
+                    // Pinchar llanta delantera
+                    frontTire.innerHTML = `
+                        <circle cx="300" cy="160" r="28" fill="#1f2937"/>
+                        <circle cx="300" cy="160" r="22" fill="#374151"/>
+                        <circle cx="300" cy="160" r="16" fill="#6b7280"/>
+                        <g stroke="#ef4444" stroke-width="3" fill="none">
+                            <line x1="280" y1="150" x2="320" y2="170"/>
+                            <line x1="320" y1="150" x2="280" y2="170"/>
+                        </g>
+                        <text x="300" y="190" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="bold">PINCHADA</text>
+                    `;
+                    smoke.style.display = 'block';
+                    carStatus.textContent = "🛞💥 LLANTA DEPORTIVA PINCHADA";
+                    break;
+                case 5:
+                    // Pinchar llanta trasera
+                    rearTire.innerHTML = `
+                        <circle cx="100" cy="160" r="28" fill="#1f2937"/>
+                        <circle cx="100" cy="160" r="22" fill="#374151"/>
+                        <circle cx="100" cy="160" r="16" fill="#6b7280"/>
+                        <g stroke="#ef4444" stroke-width="3" fill="none">
+                            <line x1="80" y1="150" x2="120" y2="170"/>
+                            <line x1="120" y1="150" x2="80" y2="170"/>
+                        </g>
+                        <text x="100" y="190" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="bold">PINCHADA</text>
+                    `;
+                    carStatus.textContent = "🔥 AUTO DEPORTIVO DESTRUIDO 🔥";
+                    document.getElementById('gameOverEffects').style.display = 'block';
+                    break;
+            }
+        }
+
+        // Actualizar estado de daños
+        function updateDamageStatus() {
+            const damageCount = document.getElementById('damageCount');
+            const damageDescription = document.getElementById('damageDescription');
+            
+            damageCount.textContent = `Daños: ${errors}/${maxErrors}`;
+            
+            // Update colors and descriptions
+            if (errors === 0) {
+                damageCount.className = 'damage-count green';
+                damageDescription.className = 'damage-description green';
+                damageDescription.textContent = '🚗 ¡Auto Perfecto!';
+            } else if (errors <= 2) {
+                damageCount.className = 'damage-count orange';
+                damageDescription.className = 'damage-description orange';
+                if (errors === 1) damageDescription.textContent = '💥 Ventana rota';
+                if (errors === 2) damageDescription.textContent = '🪞❌ Sin espejo';
+            } else if (errors <= 4) {
+                damageCount.className = 'damage-count red';
+                damageDescription.className = 'damage-description red';
+                if (errors === 3) damageDescription.textContent = '💥💥 Ambas ventanas';
+                if (errors === 4) damageDescription.textContent = '🛞💥 Llanta pinchada';
+            } else {
+                damageCount.className = 'damage-count red-pulse';
+                damageDescription.className = 'damage-description red-pulse';
+                damageDescription.textContent = '🔥 AUTO DESTRUIDO';
+            }
+        }
+
+        // Actualizar letras incorrectas
+        function updateWrongLetters() {
+            const wrongLetters = guessedLetters.filter(letter => !currentGame.word.includes(letter));
+            if (wrongLetters.length > 0) {
+                document.getElementById('wrongLettersContainer').style.display = 'block';
+                document.getElementById('wrongLetters').textContent = wrongLetters.join(', ');
+            }
+        }
+
+        // Verificar fin del juego
+        function checkGameEnd() {
+            const wordCompleted = currentGame.word.split('').every(letter => guessedLetters.includes(letter));
+            
+            if (wordCompleted) {
+                hasWon = true;
+                gameEnded = true;
+                score += (maxErrors - errors) * 10;
+                document.getElementById('score').textContent = score;
+                showResult(true);
+            } else if (errors >= maxErrors) {
+                hasWon = false;
+                gameEnded = true;
+                showResult(false);
+            }
+        }
+
+        // Mostrar resultado
+        function showResult(won) {
+            const resultMessage = document.getElementById('resultMessage');
+            const resultEmoji = resultMessage.querySelector('.result-emoji');
+            const resultTitle = resultMessage.querySelector('.result-title');
+            const resultWord = resultMessage.querySelector('.result-word');
+            const resultPoints = resultMessage.querySelector('.result-points');
+            
+            resultWord.textContent = currentGame.word;
+            
+            if (won) {
+                resultMessage.className = 'result-message result-win';
+                resultEmoji.textContent = '🎉';
+                resultTitle.textContent = '¡Excelente! ¡Ganaste!';
+                                    resultPoints.innerHTML = `<span style="color: #059669; font-weight: bold;">+${(maxErrors - errors) * 10} puntos 🏆</span>`;
+            } else {
+                resultMessage.className = 'result-message result-lose';
+                resultEmoji.textContent = '💀';
+                resultTitle.textContent = '¡Oh no! ¡Perdiste!';
+                resultPoints.innerHTML = '<span style="color: #dc2626;">¡El auto necesita reparación! 🔧⚡</span>';
+            }
+            
+            resultMessage.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
+
+{% endblock %}
+
