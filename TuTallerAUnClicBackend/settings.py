@@ -36,6 +36,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -94,6 +95,16 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'TuTallerApp' / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+if not DEBUG:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -119,14 +130,22 @@ SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
 
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='',
-    cast=lambda v: [s.strip() for s in v.split(',') if s.strip()]
-)
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOWED_ORIGINS = [
+        origin for origin in config('CORS_ALLOWED_ORIGINS', default='').split(',') if origin
+    ]
 
 GOOGLE_CLIENT_ID = config(
     'GOOGLE_CLIENT_ID',
     default='467844112079-9995fc8stij6t4unq4m0gdgl56htdrhh.apps.googleusercontent.com'
 )
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    CSRF_TRUSTED_ORIGINS = [
+        origin for origin in config('CSRF_TRUSTED_ORIGINS', default='').split(',') if origin
+    ]
