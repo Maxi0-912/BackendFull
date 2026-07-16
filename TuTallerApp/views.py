@@ -1,4 +1,5 @@
 ﻿import datetime
+import logging
 from django.contrib.auth import authenticate
 from django.conf import settings
 from django.db.models import Avg, Count
@@ -23,6 +24,8 @@ from .serializers import (
     NotificacionSerializer, NotificacionAdminSerializer,
     AnuncioSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _user_data(user, request=None):
@@ -94,8 +97,14 @@ class GoogleLoginView(APIView):
                 google_requests.Request(),
                 settings.GOOGLE_CLIENT_ID,
             )
-        except Exception:
-            return Response({'error': 'Token de Google invalido'}, status=status.HTTP_400_BAD_REQUEST)
+        except ValueError as e:
+            logger.error(f"Google token rechazado: {e}")
+            return Response({'error': 'Token de Google invalido'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error inesperado validando token de Google: {type(e).__name__}: {e}")
+            return Response({'error': 'Token de Google invalido'},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         google_id  = idinfo['sub']
         email      = idinfo.get('email', '')
