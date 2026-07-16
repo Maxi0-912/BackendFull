@@ -103,6 +103,11 @@ if not DEBUG:
         'API_KEY': config('CLOUDINARY_API_KEY', default=''),
         'API_SECRET': config('CLOUDINARY_API_SECRET', default=''),
     }
+    # django-cloudinary-storage aun lee el setting legado STATICFILES_STORAGE
+    # directamente (no soporta STORAGES); sin esto, collectstatic revienta con
+    # AttributeError. Django ignora este valor para su propio comportamiento
+    # porque STORAGES ya esta definido abajo.
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
     STORAGES = {
         "default": {
             "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
