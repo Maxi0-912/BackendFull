@@ -2,7 +2,7 @@
 import logging
 from django.contrib.auth import authenticate
 from django.conf import settings
-from django.db.models import Avg, Count
+from django.db.models import Avg, Count, Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -311,7 +311,16 @@ class CrearTipoServicioView(APIView):
 class AnunciosPublicosView(APIView):
     permission_classes = [AllowAny]
     def get(self, request):
-        qs = Anuncio.objects.filter(activo=True)
+        today = datetime.date.today()
+        qs = Anuncio.objects.filter(activo=True).filter(
+            Q(fecha_inicio__isnull=True) | Q(fecha_inicio__lte=today)
+        ).filter(
+            Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=today)
+        )
+        categoria = request.query_params.get('categoria')
+        if categoria:
+            qs = qs.filter(categoria=categoria)
+        qs = qs.order_by('orden', '-creado_en')
         return Response(AnuncioSerializer(qs, many=True, context={'request': request}).data)
 
 

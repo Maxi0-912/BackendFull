@@ -353,13 +353,15 @@ class NotificacionAdminSerializer(serializers.ModelSerializer):
 
 
 class AnuncioSerializer(serializers.ModelSerializer):
-    imagen_url = serializers.SerializerMethodField()
+    imagen_url             = serializers.SerializerMethodField()
+    establecimiento_nombre = serializers.CharField(source='establecimiento.nombre', read_only=True)
 
     class Meta:
         model  = Anuncio
         fields = [
             'id', 'titulo', 'descripcion', 'imagen', 'imagen_url', 'tipo',
-            'texto_boton', 'url_boton', 'establecimiento',
+            'categoria', 'descuento',
+            'texto_boton', 'url_boton', 'establecimiento', 'establecimiento_nombre',
             'activo', 'orden', 'fecha_inicio', 'fecha_fin', 'creado_en',
         ]
 

@@ -140,10 +140,16 @@ class Anuncio(models.Model):
         ('imagen_texto', 'Imagen con texto'),
         ('imagen_boton', 'Imagen con boton'),
     ]
+    CATEGORIA_CHOICES = [
+        ('banner', 'Banner'),
+        ('oferta', 'Oferta'),
+    ]
     titulo          = models.CharField(max_length=200, blank=True)
     descripcion     = models.TextField(blank=True)
     imagen          = models.ImageField(upload_to='anuncios/')
     tipo            = models.CharField(max_length=20, choices=TIPO_CHOICES, default='imagen')
+    categoria       = models.CharField(max_length=10, choices=CATEGORIA_CHOICES, default='banner')
+    descuento       = models.CharField(max_length=20, blank=True)
     texto_boton     = models.CharField(max_length=50, blank=True)
     url_boton       = models.CharField(max_length=500, blank=True)
     establecimiento = models.ForeignKey(

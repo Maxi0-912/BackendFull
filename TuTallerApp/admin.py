@@ -68,5 +68,5 @@ class NotificacionAdmin(admin.ModelAdmin):
 
 @admin.register(Anuncio)
 class AnuncioAdmin(admin.ModelAdmin):
-    list_display = ('titulo', 'tipo', 'activo', 'orden')
-    list_filter  = ('activo', 'tipo')
+    list_display = ('titulo', 'categoria', 'establecimiento', 'activo', 'fecha_inicio', 'fecha_fin')
+    list_filter  = ('categoria', 'activo')
