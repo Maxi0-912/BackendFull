@@ -362,7 +362,9 @@ class AnuncioSerializer(serializers.ModelSerializer):
             'id', 'titulo', 'descripcion', 'imagen', 'imagen_url', 'tipo',
             'categoria', 'descuento',
             'texto_boton', 'url_boton', 'establecimiento', 'establecimiento_nombre',
-            'activo', 'orden', 'fecha_inicio', 'fecha_fin', 'creado_en',
+            'activo', 'orden', 'fecha_inicio', 'fecha_fin',
+            'estado', 'motivo_rechazo', 'es_pago', 'pagado',
+            'creado_en', 'actualizado_en',
         ]
 
     def get_imagen_url(self, obj):
@@ -370,3 +372,51 @@ class AnuncioSerializer(serializers.ModelSerializer):
         if obj.imagen and request:
             return request.build_absolute_uri(obj.imagen.url)
         return None
+
+
+IMAGEN_CONTENT_TYPES_VALIDAS = ('image/jpeg', 'image/png', 'image/webp')
+IMAGEN_TAMANIO_MAXIMO = 3 * 1024 * 1024  # 3 MB
+
+
+class EmpresaAnuncioSerializer(serializers.ModelSerializer):
+    imagen_url             = serializers.SerializerMethodField()
+    establecimiento_nombre = serializers.CharField(source='establecimiento.nombre', read_only=True)
+
+    class Meta:
+        model  = Anuncio
+        fields = [
+            'id', 'titulo', 'descripcion', 'imagen', 'imagen_url', 'tipo',
+            'categoria', 'descuento',
+            'texto_boton', 'url_boton', 'establecimiento', 'establecimiento_nombre',
+            'activo', 'orden', 'fecha_inicio', 'fecha_fin',
+            'estado', 'motivo_rechazo', 'es_pago', 'pagado',
+            'creado_en', 'actualizado_en',
+        ]
+        read_only_fields = ['estado', 'motivo_rechazo', 'es_pago', 'pagado']
+
+    def get_imagen_url(self, obj):
+        request = self.context.get('request')
+        if obj.imagen and request:
+            return request.build_absolute_uri(obj.imagen.url)
+        return None
+
+    def validate_establecimiento(self, value):
+        request = self.context.get('request')
+        if request and value.propietario_id != request.user.id:
+            raise serializers.ValidationError('El establecimiento no pertenece al usuario.')
+        return value
+
+    def validate_url_boton(self, value):
+        if value and not value.lower().startswith(('http://', 'https://')):
+            raise serializers.ValidationError('La URL debe comenzar con http:// o https://.')
+        return value
+
+    def validate_imagen(self, value):
+        if not value:
+            return value
+        content_type = getattr(value, 'content_type', None)
+        if content_type and content_type not in IMAGEN_CONTENT_TYPES_VALIDAS:
+            raise serializers.ValidationError('La imagen debe ser JPG, PNG o WEBP.')
+        if value.size and value.size > IMAGEN_TAMANIO_MAXIMO:
+            raise serializers.ValidationError('La imagen no puede superar los 3 MB.')
+        return value

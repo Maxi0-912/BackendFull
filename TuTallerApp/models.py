@@ -144,6 +144,14 @@ class Anuncio(models.Model):
         ('banner', 'Banner'),
         ('oferta', 'Oferta'),
     ]
+    ESTADO_CHOICES = [
+        ('pendiente', 'Pendiente'),
+        ('aprobado',  'Aprobado'),
+        ('rechazado', 'Rechazado'),
+    ]
+
+    CUPO_GRATIS = 3
+
     titulo          = models.CharField(max_length=200, blank=True)
     descripcion     = models.TextField(blank=True)
     imagen          = models.ImageField(upload_to='anuncios/')
@@ -156,14 +164,23 @@ class Anuncio(models.Model):
         'Establecimiento', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='anuncios'
     )
-    activo      = models.BooleanField(default=True)
-    orden       = models.PositiveIntegerField(default=0)
-    fecha_inicio = models.DateField(null=True, blank=True)
-    fecha_fin    = models.DateField(null=True, blank=True)
-    creado_en   = models.DateTimeField(auto_now_add=True)
+    activo         = models.BooleanField(default=True)
+    orden          = models.PositiveIntegerField(default=0)
+    fecha_inicio   = models.DateField(null=True, blank=True)
+    fecha_fin      = models.DateField(null=True, blank=True)
+    estado         = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='pendiente')
+    motivo_rechazo = models.TextField(blank=True)
+    es_pago        = models.BooleanField(default=False)
+    pagado         = models.BooleanField(default=False)
+    creado_en      = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['orden', '-creado_en']
 
     def __str__(self):
         return self.titulo or f'Anuncio #{self.id}'
+
+    @property
+    def visible_al_publico(self):
+        return self.activo and self.estado == 'aprobado' and (not self.es_pago or self.pagado)

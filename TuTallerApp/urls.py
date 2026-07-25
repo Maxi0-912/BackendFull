@@ -14,6 +14,7 @@ from .views import (
     MisNotificacionesView, MarcarLeidaView,
     DashboardEmpresaView, MisEstablecimientosView, MiEstablecimientoDetailView,
     EmpresaCitasView, EmpresaServiciosView, EmpresaServicioDetailView,
+    EmpresaAnunciosView, EmpresaAnuncioDetailView, EmpresaAnuncioCupoView,
     AdminDashboardView,
     AdminUsuarioListView, AdminUsuarioDetailView,
     AdminEstablecimientoDetailView,
@@ -26,7 +27,7 @@ from .views import (
     AdminTipoEstablecimientoListView, AdminTipoEstablecimientoDetailView,
     AdminTipoServicioListView, AdminTipoServicioDetailView,
     AdminAgendaView,
-    AdminAnuncioListView, AdminAnuncioDetailView,
+    AdminAnuncioListView, AdminAnuncioDetailView, AdminAnuncioValidarView,
 )
 
 urlpatterns = [
@@ -89,6 +90,9 @@ urlpatterns = [
     path('empresa/servicios/',                      EmpresaServiciosView.as_view()),
     path('empresa/servicios/crear/',                EmpresaServiciosView.as_view()),
     path('empresa/servicios/<int:pk>/',             EmpresaServicioDetailView.as_view()),
+    path('api/empresa/anuncios/',                   EmpresaAnunciosView.as_view()),
+    path('api/empresa/anuncios/cupo/',              EmpresaAnuncioCupoView.as_view()),
+    path('api/empresa/anuncios/<int:pk>/',          EmpresaAnuncioDetailView.as_view()),
 
     # Admin
     path('api/admin/dashboard/',                        AdminDashboardView.as_view()),
@@ -114,5 +118,6 @@ urlpatterns = [
     path('api/admin/agenda/',                           AdminAgendaView.as_view()),
     path('api/admin/anuncios/',                         AdminAnuncioListView.as_view()),
     path('api/admin/anuncios/<int:pk>/',                AdminAnuncioDetailView.as_view()),
+    path('api/admin/anuncios/<int:pk>/validar/',        AdminAnuncioValidarView.as_view()),
 ]
 

@@ -22,8 +22,9 @@ from .serializers import (
     CitaCreateSerializer, CitaResponseSerializer, EmpresaCitaSerializer,
     CalificacionSerializer, CalificacionAdminSerializer,
     NotificacionSerializer, NotificacionAdminSerializer,
-    AnuncioSerializer,
+    AnuncioSerializer, EmpresaAnuncioSerializer,
 )
+from .permissions import EsEmpresa, EsAdmin
 
 logger = logging.getLogger(__name__)
 
@@ -312,7 +313,9 @@ class AnunciosPublicosView(APIView):
     permission_classes = [AllowAny]
     def get(self, request):
         today = datetime.date.today()
-        qs = Anuncio.objects.filter(activo=True).filter(
+        qs = Anuncio.objects.filter(activo=True, estado='aprobado').filter(
+            Q(es_pago=False) | Q(pagado=True)
+        ).filter(
             Q(fecha_inicio__isnull=True) | Q(fecha_inicio__lte=today)
         ).filter(
             Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=today)
@@ -722,6 +725,76 @@ class EmpresaServicioDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class EmpresaAnunciosView(APIView):
+    permission_classes = [EsEmpresa]
+
+    def get(self, request):
+        ids = Establecimiento.objects.filter(propietario=request.user).values_list('id', flat=True)
+        qs = Anuncio.objects.filter(establecimiento_id__in=ids).select_related('establecimiento')
+        return Response(EmpresaAnuncioSerializer(qs, many=True, context={'request': request}).data)
+
+    def post(self, request):
+        s = EmpresaAnuncioSerializer(data=request.data, context={'request': request})
+        if s.is_valid():
+            establecimiento = s.validated_data.get('establecimiento')
+            if establecimiento is None:
+                return Response({'error': 'establecimiento requerido'}, status=status.HTTP_400_BAD_REQUEST)
+            total = Anuncio.objects.filter(establecimiento=establecimiento).count()
+            es_pago = total >= Anuncio.CUPO_GRATIS
+            anuncio = s.save(estado='pendiente', motivo_rechazo='', es_pago=es_pago, pagado=False)
+            return Response(
+                EmpresaAnuncioSerializer(anuncio, context={'request': request}).data,
+                status=status.HTTP_201_CREATED,
+            )
+        return Response(s.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class EmpresaAnuncioDetailView(APIView):
+    permission_classes = [EsEmpresa]
+
+    def _get(self, pk, user):
+        try:
+            return Anuncio.objects.get(pk=pk, establecimiento__propietario=user)
+        except Anuncio.DoesNotExist:
+            return None
+
+    def patch(self, request, pk):
+        anuncio = self._get(pk, request.user)
+        if not anuncio:
+            return _not_found()
+        s = EmpresaAnuncioSerializer(anuncio, data=request.data, partial=True, context={'request': request})
+        if s.is_valid():
+            s.save(estado='pendiente', motivo_rechazo='')
+            return Response(EmpresaAnuncioSerializer(anuncio, context={'request': request}).data)
+        return Response(s.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        anuncio = self._get(pk, request.user)
+        if not anuncio:
+            return _not_found()
+        anuncio.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class EmpresaAnuncioCupoView(APIView):
+    permission_classes = [EsEmpresa]
+
+    def get(self, request):
+        establecimientos = Establecimiento.objects.filter(propietario=request.user)
+        data = []
+        for est in establecimientos:
+            total = Anuncio.objects.filter(establecimiento=est).count()
+            data.append({
+                'establecimiento': est.id,
+                'establecimiento_nombre': est.nombre,
+                'total_anuncios': total,
+                'cupo_gratis': Anuncio.CUPO_GRATIS,
+                'cupo_disponible': max(Anuncio.CUPO_GRATIS - total, 0),
+                'requiere_pago': total >= Anuncio.CUPO_GRATIS,
+            })
+        return Response(data)
+
+
 # ==============================
 # ADMIN helpers
 # ==============================
@@ -751,6 +824,8 @@ def _aupdate(obj, data, Ser, request):
 # ==============================
 
 class AdminDashboardView(APIView):
+    permission_classes = [EsAdmin]
+
     def get(self, request):
         today          = datetime.date.today()
         first_of_month = today.replace(day=1)
@@ -819,6 +894,8 @@ class AdminDashboardView(APIView):
 # ==============================
 
 class AdminUsuarioListView(APIView):
+    permission_classes = [EsAdmin]
+
     def get(self, request):
         return _alist(Usuario.objects.select_related('rol').all(), UsuarioAdminSerializer, request)
     def post(self, request):
@@ -826,6 +903,8 @@ class AdminUsuarioListView(APIView):
 
 
 class AdminUsuarioDetailView(APIView):
+    permission_classes = [EsAdmin]
+
     def _obj(self, pk):
         try: return Usuario.objects.get(pk=pk)
         except Usuario.DoesNotExist: return None
@@ -843,6 +922,8 @@ class AdminUsuarioDetailView(APIView):
 # ==============================
 
 class AdminEstablecimientoDetailView(APIView):
+    permission_classes = [EsAdmin]
+
     def _obj(self, pk):
         try: return Establecimiento.objects.get(pk=pk)
         except Establecimiento.DoesNotExist: return None
@@ -860,6 +941,8 @@ class AdminEstablecimientoDetailView(APIView):
 # ==============================
 
 class AdminServicioListView(APIView):
+    permission_classes = [EsAdmin]
+
     def get(self, request):
         qs = Servicio.objects.select_related('tipo_servicio', 'establecimiento').all()
         return _alist(qs, ServicioSerializer, request)
@@ -868,6 +951,8 @@ class AdminServicioListView(APIView):
 
 
 class AdminServicioDetailView(APIView):
+    permission_classes = [EsAdmin]
+
     def _obj(self, pk):
         try: return Servicio.objects.get(pk=pk)
         except Servicio.DoesNotExist: return None
@@ -885,6 +970,8 @@ class AdminServicioDetailView(APIView):
 # ==============================
 
 class AdminPrestacionListView(APIView):
+    permission_classes = [EsAdmin]
+
     def get(self, request):
         qs = Cita.objects.select_related(
             'usuario', 'establecimiento', 'servicio', 'vehiculo'
@@ -895,6 +982,8 @@ class AdminPrestacionListView(APIView):
 
 
 class AdminPrestacionDetailView(APIView):
+    permission_classes = [EsAdmin]
+
     def _obj(self, pk):
         try: return Cita.objects.get(pk=pk)
         except Cita.DoesNotExist: return None
@@ -912,6 +1001,8 @@ class AdminPrestacionDetailView(APIView):
 # ==============================
 
 class AdminCalificacionListView(APIView):
+    permission_classes = [EsAdmin]
+
     def get(self, request):
         qs = Calificacion.objects.select_related('cita__usuario').all()
         return _alist(qs, CalificacionAdminSerializer, request)
@@ -920,6 +1011,8 @@ class AdminCalificacionListView(APIView):
 
 
 class AdminCalificacionDetailView(APIView):
+    permission_classes = [EsAdmin]
+
     def _obj(self, pk):
         try: return Calificacion.objects.get(pk=pk)
         except Calificacion.DoesNotExist: return None
@@ -937,6 +1030,8 @@ class AdminCalificacionDetailView(APIView):
 # ==============================
 
 class AdminNotificacionListView(APIView):
+    permission_classes = [EsAdmin]
+
     def get(self, request):
         qs = Notificacion.objects.select_related('usuario').all()
         return _alist(qs, NotificacionAdminSerializer, request)
@@ -945,6 +1040,8 @@ class AdminNotificacionListView(APIView):
 
 
 class AdminNotificacionDetailView(APIView):
+    permission_classes = [EsAdmin]
+
     def _obj(self, pk):
         try: return Notificacion.objects.get(pk=pk)
         except Notificacion.DoesNotExist: return None
@@ -962,6 +1059,8 @@ class AdminNotificacionDetailView(APIView):
 # ==============================
 
 class AdminVehiculoListView(APIView):
+    permission_classes = [EsAdmin]
+
     def get(self, request):
         qs = Vehiculo.objects.select_related('usuario').all()
         return _alist(qs, VehiculoAdminSerializer, request)
@@ -970,6 +1069,8 @@ class AdminVehiculoListView(APIView):
 
 
 class AdminVehiculoDetailView(APIView):
+    permission_classes = [EsAdmin]
+
     def _obj(self, placa):
         try: return Vehiculo.objects.get(placa=placa)
         except Vehiculo.DoesNotExist: return None
@@ -987,6 +1088,8 @@ class AdminVehiculoDetailView(APIView):
 # ==============================
 
 class AdminRolListView(APIView):
+    permission_classes = [EsAdmin]
+
     def get(self, request):
         return _alist(Rol.objects.all(), RolSerializer, request)
     def post(self, request):
@@ -994,6 +1097,8 @@ class AdminRolListView(APIView):
 
 
 class AdminRolDetailView(APIView):
+    permission_classes = [EsAdmin]
+
     def _obj(self, pk):
         try: return Rol.objects.get(pk=pk)
         except Rol.DoesNotExist: return None
@@ -1011,6 +1116,8 @@ class AdminRolDetailView(APIView):
 # ==============================
 
 class AdminTipoEstablecimientoListView(APIView):
+    permission_classes = [EsAdmin]
+
     def get(self, request):
         return _alist(TipoEstablecimiento.objects.all(), TipoEstablecimientoSerializer, request)
     def post(self, request):
@@ -1018,6 +1125,8 @@ class AdminTipoEstablecimientoListView(APIView):
 
 
 class AdminTipoEstablecimientoDetailView(APIView):
+    permission_classes = [EsAdmin]
+
     def _obj(self, pk):
         try: return TipoEstablecimiento.objects.get(pk=pk)
         except TipoEstablecimiento.DoesNotExist: return None
@@ -1035,6 +1144,8 @@ class AdminTipoEstablecimientoDetailView(APIView):
 # ==============================
 
 class AdminTipoServicioListView(APIView):
+    permission_classes = [EsAdmin]
+
     def get(self, request):
         return _alist(TipoServicio.objects.all(), TipoServicioSerializer, request)
     def post(self, request):
@@ -1042,6 +1153,8 @@ class AdminTipoServicioListView(APIView):
 
 
 class AdminTipoServicioDetailView(APIView):
+    permission_classes = [EsAdmin]
+
     def _obj(self, pk):
         try: return TipoServicio.objects.get(pk=pk)
         except TipoServicio.DoesNotExist: return None
@@ -1059,6 +1172,8 @@ class AdminTipoServicioDetailView(APIView):
 # ==============================
 
 class AdminAgendaView(APIView):
+    permission_classes = [EsAdmin]
+
     def get(self, request):
         return Response([])
 
@@ -1068,6 +1183,8 @@ class AdminAgendaView(APIView):
 # ==============================
 
 class AdminAnuncioListView(APIView):
+    permission_classes = [EsAdmin]
+
     def get(self, request):
         return _alist(Anuncio.objects.all(), AnuncioSerializer, request)
     def post(self, request):
@@ -1075,6 +1192,8 @@ class AdminAnuncioListView(APIView):
 
 
 class AdminAnuncioDetailView(APIView):
+    permission_classes = [EsAdmin]
+
     def _obj(self, pk):
         try: return Anuncio.objects.get(pk=pk)
         except Anuncio.DoesNotExist: return None
@@ -1085,3 +1204,23 @@ class AdminAnuncioDetailView(APIView):
         obj = self._obj(pk)
         if not obj: return _not_found()
         obj.delete(); return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminAnuncioValidarView(APIView):
+    permission_classes = [EsAdmin]
+
+    def patch(self, request, pk):
+        try:
+            anuncio = Anuncio.objects.get(pk=pk)
+        except Anuncio.DoesNotExist:
+            return _not_found()
+        nuevo_estado = request.data.get('estado')
+        if nuevo_estado not in ('aprobado', 'rechazado'):
+            return Response(
+                {'error': "estado debe ser 'aprobado' o 'rechazado'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        anuncio.estado = nuevo_estado
+        anuncio.motivo_rechazo = request.data.get('motivo_rechazo', '') if nuevo_estado == 'rechazado' else ''
+        anuncio.save(update_fields=['estado', 'motivo_rechazo', 'actualizado_en'])
+        return Response(AnuncioSerializer(anuncio, context={'request': request}).data)
