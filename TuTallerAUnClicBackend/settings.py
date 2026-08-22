@@ -10,7 +10,7 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = config(
     'ALLOWED_HOSTS',
-    default='*',
+    default='localhost,127.0.0.1',
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 
@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     # Terceros
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
 
     # App principal
@@ -136,8 +137,8 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
-    'ROTATE_REFRESH_TOKENS': False,
-    'BLACKLIST_AFTER_ROTATION': False,
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
@@ -149,10 +150,7 @@ else:
         origin for origin in config('CORS_ALLOWED_ORIGINS', default='').split(',') if origin
     ]
 
-GOOGLE_CLIENT_ID = config(
-    'GOOGLE_CLIENT_ID',
-    default='467844112079-9995fc8stij6t4unq4m0gdgl56htdrhh.apps.googleusercontent.com'
-)
+GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
 
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
