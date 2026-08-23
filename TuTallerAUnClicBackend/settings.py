@@ -16,6 +16,10 @@ ALLOWED_HOSTS = config(
 
 AUTH_USER_MODEL = 'TuTallerApp.Usuario'
 
+NEQUI_NUMERO = config('NEQUI_NUMERO', default='')
+NEQUI_TITULAR = config('NEQUI_TITULAR', default='')
+ANUNCIO_MONTO_COP = config('ANUNCIO_MONTO_COP', default=0, cast=int)
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',

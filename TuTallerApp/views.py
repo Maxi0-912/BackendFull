@@ -1,5 +1,6 @@
 ﻿import datetime
 import logging
+from decimal import Decimal
 from django.contrib.auth import authenticate
 from django.conf import settings
 from django.db.models import Avg, Count, Q
@@ -12,7 +13,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import (
     Rol, Usuario, TipoEstablecimiento, Establecimiento,
     TipoServicio, Servicio, Vehiculo,
-    Cita, Calificacion, Notificacion, Anuncio,
+    Cita, Calificacion, Notificacion, Anuncio, PagoPendiente,
 )
 from .serializers import (
     RolSerializer, RegisterSerializer, UpdateUsuarioSerializer, UsuarioAdminSerializer,
@@ -777,6 +778,56 @@ class EmpresaAnuncioDetailView(APIView):
             return _not_found()
         anuncio.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class EmpresaAnuncioPagoView(APIView):
+    permission_classes = [EsEmpresa]
+
+    def _get_anuncio(self, pk, user):
+        try:
+            return Anuncio.objects.get(pk=pk, establecimiento__propietario=user)
+        except Anuncio.DoesNotExist:
+            return None
+
+    def _data(self, pago):
+        return {
+            'referencia': pago.referencia,
+            'monto': pago.monto,
+            'numero_nequi': pago.numero_nequi,
+            'titular': settings.NEQUI_TITULAR,
+            'estado': pago.estado,
+        }
+
+    def post(self, request, pk):
+        anuncio = self._get_anuncio(pk, request.user)
+        if not anuncio:
+            return _not_found()
+        if not (anuncio.es_pago and not anuncio.pagado):
+            return Response(
+                {'error': 'Este anuncio no requiere pago o ya fue pagado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        pago, creado = PagoPendiente.objects.get_or_create(
+            anuncio=anuncio,
+            defaults={
+                'monto': Decimal(settings.ANUNCIO_MONTO_COP).quantize(Decimal('0.01')),
+                'numero_nequi': settings.NEQUI_NUMERO,
+            },
+        )
+        return Response(
+            self._data(pago),
+            status=status.HTTP_201_CREATED if creado else status.HTTP_200_OK,
+        )
+
+    def get(self, request, pk):
+        anuncio = self._get_anuncio(pk, request.user)
+        if not anuncio:
+            return _not_found()
+        try:
+            pago = anuncio.pago_pendiente
+        except PagoPendiente.DoesNotExist:
+            return _not_found('Aun no se inicio el pago para este anuncio.')
+        return Response(self._data(pago))
 
 
 class EmpresaAnuncioCupoView(APIView):
