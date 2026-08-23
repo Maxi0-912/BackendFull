@@ -327,6 +327,14 @@ class AnunciosPublicosView(APIView):
         ubicacion = request.query_params.get('ubicacion')
         if ubicacion:
             qs = qs.filter(ubicaciones__contains=[ubicacion])
+        # Mantener en sync con _accion_de_anuncio() en serializers.py.
+        accion = request.query_params.get('accion')
+        if accion == 'agendar':
+            qs = qs.filter(servicio__isnull=False)
+        elif accion == 'enlace':
+            qs = qs.filter(servicio__isnull=True).exclude(url_boton='')
+        elif accion == 'ninguno':
+            qs = qs.filter(servicio__isnull=True, url_boton='')
         establecimiento_id = request.query_params.get('establecimiento') or request.query_params.get('establecimiento_id')
         if establecimiento_id and establecimiento_id.isdigit():
             qs = qs.filter(establecimiento_id=establecimiento_id)
