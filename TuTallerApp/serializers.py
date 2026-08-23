@@ -377,6 +377,14 @@ class ServicioMinSerializer(serializers.ModelSerializer):
         fields = ['id', 'nombre']
 
 
+def _accion_de_anuncio(obj):
+    if obj.servicio_id:
+        return 'agendar'
+    if obj.url_boton:
+        return 'enlace'
+    return None
+
+
 class AnuncioSerializer(serializers.ModelSerializer):
     imagen_url             = serializers.SerializerMethodField()
     establecimiento_nombre = serializers.CharField(source='establecimiento.nombre', read_only=True)
@@ -386,6 +394,7 @@ class AnuncioSerializer(serializers.ModelSerializer):
         write_only=True, required=False, allow_null=True,
     )
     ubicaciones             = serializers.JSONField()
+    accion                  = serializers.SerializerMethodField()
 
     class Meta:
         model  = Anuncio
@@ -393,7 +402,7 @@ class AnuncioSerializer(serializers.ModelSerializer):
             'id', 'titulo', 'descripcion', 'imagen', 'imagen_url', 'tipo',
             'categoria', 'descuento',
             'texto_boton', 'url_boton', 'establecimiento', 'establecimiento_nombre',
-            'servicio', 'servicio_id', 'ubicaciones',
+            'servicio', 'servicio_id', 'ubicaciones', 'accion',
             'activo', 'orden', 'fecha_inicio', 'fecha_fin',
             'estado', 'motivo_rechazo', 'es_pago', 'pagado',
             'creado_en', 'actualizado_en',
@@ -404,6 +413,9 @@ class AnuncioSerializer(serializers.ModelSerializer):
         if obj.imagen and request:
             return request.build_absolute_uri(obj.imagen.url)
         return None
+
+    def get_accion(self, obj):
+        return _accion_de_anuncio(obj)
 
 
 IMAGEN_CONTENT_TYPES_VALIDAS = ('image/jpeg', 'image/png', 'image/webp')
@@ -421,6 +433,7 @@ class EmpresaAnuncioSerializer(serializers.ModelSerializer):
     ubicaciones             = serializers.JSONField()
     monto_resuelto          = serializers.SerializerMethodField()
     citas_generadas_count   = serializers.SerializerMethodField()
+    accion                  = serializers.SerializerMethodField()
 
     class Meta:
         model  = Anuncio
@@ -428,7 +441,7 @@ class EmpresaAnuncioSerializer(serializers.ModelSerializer):
             'id', 'titulo', 'descripcion', 'imagen', 'imagen_url', 'tipo',
             'categoria', 'descuento',
             'texto_boton', 'url_boton', 'establecimiento', 'establecimiento_nombre',
-            'servicio', 'servicio_id', 'ubicaciones', 'monto_resuelto', 'citas_generadas_count',
+            'servicio', 'servicio_id', 'ubicaciones', 'accion', 'monto_resuelto', 'citas_generadas_count',
             'activo', 'orden', 'fecha_inicio', 'fecha_fin',
             'estado', 'motivo_rechazo', 'es_pago', 'pagado',
             'creado_en', 'actualizado_en',
@@ -439,6 +452,9 @@ class EmpresaAnuncioSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'citas_generadas_count'):
             return obj.citas_generadas_count
         return obj.citas_generadas.count()
+
+    def get_accion(self, obj):
+        return _accion_de_anuncio(obj)
 
     def get_monto_resuelto(self, obj):
         if not hasattr(self, '_tarifas_activas'):
