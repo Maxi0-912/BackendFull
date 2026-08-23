@@ -31,6 +31,11 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError('El correo ya esta registrado.')
         return value
 
+    def validate_rol(self, value):
+        if value and Rol.objects.filter(pk=value, nombre__iexact='admin').exists():
+            raise serializers.ValidationError('No se puede autoregistrar con el rol de administrador.')
+        return value
+
     def create(self, validated_data):
         rol_id = validated_data.pop('rol', None)
         password = validated_data.pop('password')
@@ -57,6 +62,11 @@ class UpdateUsuarioSerializer(serializers.ModelSerializer):
     def validate_username(self, value):
         if Usuario.objects.filter(username=value).exclude(pk=self.instance.pk).exists():
             raise serializers.ValidationError('El nombre de usuario ya existe.')
+        return value
+
+    def validate_rol(self, value):
+        if value and Rol.objects.filter(pk=value, nombre__iexact='admin').exists():
+            raise serializers.ValidationError('No se puede autoasignar el rol de administrador.')
         return value
 
     def update(self, instance, validated_data):
