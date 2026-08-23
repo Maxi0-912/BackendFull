@@ -109,6 +109,10 @@ class Cita(models.Model):
     servicio           = models.ForeignKey(Servicio, on_delete=models.SET_NULL, null=True, blank=True)
     servicio_texto     = models.CharField(max_length=200, blank=True)
     vehiculo           = models.ForeignKey(Vehiculo, on_delete=models.SET_NULL, null=True, blank=True)
+    anuncio_origen     = models.ForeignKey(
+        'Anuncio', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='citas_generadas'
+    )
     fecha              = models.DateField()
     hora               = models.CharField(max_length=10)
     estado             = models.CharField(max_length=30, choices=ESTADO_CHOICES, default='pendiente')

@@ -357,6 +357,28 @@ class MisCitasView(APIView):
         return Response(CitaResponseSerializer(qs, many=True).data)
 
 
+def _resolver_anuncio_origen(anuncio_id, establecimiento_id):
+    if not anuncio_id:
+        return None
+    try:
+        anuncio = Anuncio.objects.get(pk=anuncio_id)
+    except (Anuncio.DoesNotExist, ValueError, TypeError):
+        return None
+    try:
+        if int(anuncio.establecimiento_id) != int(establecimiento_id):
+            return None
+    except (TypeError, ValueError):
+        return None
+    if anuncio.estado != 'aprobado':
+        return None
+    hoy = datetime.date.today()
+    if anuncio.fecha_inicio and anuncio.fecha_inicio > hoy:
+        return None
+    if anuncio.fecha_fin and anuncio.fecha_fin < hoy:
+        return None
+    return anuncio
+
+
 class CrearCitaView(APIView):
     def post(self, request):
         data = request.data
@@ -367,12 +389,17 @@ class CrearCitaView(APIView):
                 placa=placa,
                 defaults={'usuario': request.user, 'marca': '', 'modelo': '', 'tipo': 'carro'},
             )
+        anuncio_origen = _resolver_anuncio_origen(
+            data.get('anuncio_origen_id') or data.get('anuncio_origen'),
+            data.get('establecimiento'),
+        )
         try:
             cita = Cita.objects.create(
                 usuario=request.user,
                 establecimiento_id=data.get('establecimiento'),
                 servicio_id=data.get('servicio') or None,
                 vehiculo=vehiculo,
+                anuncio_origen=anuncio_origen,
                 fecha=data.get('fecha'),
                 hora=data.get('hora'),
                 descripcion=data.get('descripcion', '') or '',
@@ -680,7 +707,7 @@ class EmpresaCitasView(APIView):
         qs = Cita.objects.filter(
             establecimiento__propietario=request.user
         ).select_related(
-            'establecimiento', 'servicio', 'vehiculo', 'usuario'
+            'establecimiento', 'servicio', 'vehiculo', 'usuario', 'anuncio_origen'
         ).order_by('-fecha', '-hora')
         return Response(EmpresaCitaSerializer(qs, many=True).data)
 
@@ -734,7 +761,9 @@ class EmpresaAnunciosView(APIView):
 
     def get(self, request):
         ids = Establecimiento.objects.filter(propietario=request.user).values_list('id', flat=True)
-        qs = Anuncio.objects.filter(establecimiento_id__in=ids).select_related('establecimiento')
+        qs = Anuncio.objects.filter(establecimiento_id__in=ids).select_related('establecimiento').annotate(
+            citas_generadas_count=Count('citas_generadas')
+        )
         return Response(EmpresaAnuncioSerializer(qs, many=True, context={'request': request}).data)
 
     def post(self, request):

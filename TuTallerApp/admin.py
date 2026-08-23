@@ -50,8 +50,8 @@ class VehiculoAdmin(admin.ModelAdmin):
 
 @admin.register(Cita)
 class CitaAdmin(admin.ModelAdmin):
-    list_display  = ('id', 'usuario', 'establecimiento', 'fecha', 'hora', 'estado')
-    list_filter   = ('estado',)
+    list_display  = ('id', 'usuario', 'establecimiento', 'fecha', 'hora', 'estado', 'anuncio_origen')
+    list_filter   = ('estado', 'anuncio_origen')
     search_fields = ('usuario__username', 'establecimiento__nombre')
 
 
@@ -68,7 +68,7 @@ class NotificacionAdmin(admin.ModelAdmin):
 
 @admin.register(Anuncio)
 class AnuncioAdmin(admin.ModelAdmin):
-    list_display = ('titulo', 'categoria', 'establecimiento', 'activo', 'fecha_inicio', 'fecha_fin')
+    list_display = ('titulo', 'categoria', 'establecimiento', 'servicio', 'activo', 'fecha_inicio', 'fecha_fin')
     list_filter  = ('categoria', 'activo')
 
 

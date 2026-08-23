@@ -265,6 +265,12 @@ class CitaAdminSerializer(serializers.ModelSerializer):
         return obj.vehiculo.placa if obj.vehiculo else None
 
 
+class AnuncioOrigenMinSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Anuncio
+        fields = ['id', 'titulo']
+
+
 class EmpresaCitaSerializer(serializers.ModelSerializer):
     establecimiento_nombre = serializers.CharField(source='establecimiento.nombre', read_only=True)
     establecimiento_id     = serializers.IntegerField(source='establecimiento.id', read_only=True)
@@ -273,6 +279,7 @@ class EmpresaCitaSerializer(serializers.ModelSerializer):
     servicio_nombre        = serializers.SerializerMethodField()
     vehiculo_placa         = serializers.SerializerMethodField()
     tiene_resena           = serializers.SerializerMethodField()
+    anuncio_origen_detalle = AnuncioOrigenMinSerializer(source='anuncio_origen', read_only=True)
 
     class Meta:
         model  = Cita
@@ -282,6 +289,7 @@ class EmpresaCitaSerializer(serializers.ModelSerializer):
             'usuario_nombre', 'usuario_telefono',
             'servicio', 'servicio_nombre', 'servicio_texto',
             'vehiculo_placa', 'tiene_resena',
+            'anuncio_origen', 'anuncio_origen_detalle',
             'descripcion', 'comentario_empresa',
         ]
 
@@ -371,7 +379,11 @@ class ServicioMinSerializer(serializers.ModelSerializer):
 class AnuncioSerializer(serializers.ModelSerializer):
     imagen_url             = serializers.SerializerMethodField()
     establecimiento_nombre = serializers.CharField(source='establecimiento.nombre', read_only=True)
-    servicio_detalle        = ServicioMinSerializer(source='servicio', read_only=True)
+    servicio                = ServicioMinSerializer(read_only=True)
+    servicio_id             = serializers.PrimaryKeyRelatedField(
+        source='servicio', queryset=Servicio.objects.all(),
+        write_only=True, required=False, allow_null=True,
+    )
 
     class Meta:
         model  = Anuncio
@@ -379,7 +391,7 @@ class AnuncioSerializer(serializers.ModelSerializer):
             'id', 'titulo', 'descripcion', 'imagen', 'imagen_url', 'tipo',
             'categoria', 'descuento',
             'texto_boton', 'url_boton', 'establecimiento', 'establecimiento_nombre',
-            'servicio', 'servicio_detalle',
+            'servicio', 'servicio_id',
             'activo', 'orden', 'fecha_inicio', 'fecha_fin',
             'estado', 'motivo_rechazo', 'es_pago', 'pagado',
             'creado_en', 'actualizado_en',
@@ -399,7 +411,12 @@ IMAGEN_TAMANIO_MAXIMO = 3 * 1024 * 1024  # 3 MB
 class EmpresaAnuncioSerializer(serializers.ModelSerializer):
     imagen_url             = serializers.SerializerMethodField()
     establecimiento_nombre = serializers.CharField(source='establecimiento.nombre', read_only=True)
-    servicio_detalle        = ServicioMinSerializer(source='servicio', read_only=True)
+    servicio                = ServicioMinSerializer(read_only=True)
+    servicio_id             = serializers.PrimaryKeyRelatedField(
+        source='servicio', queryset=Servicio.objects.none(),
+        write_only=True, required=False, allow_null=True,
+    )
+    citas_generadas_count   = serializers.SerializerMethodField()
 
     class Meta:
         model  = Anuncio
@@ -407,18 +424,23 @@ class EmpresaAnuncioSerializer(serializers.ModelSerializer):
             'id', 'titulo', 'descripcion', 'imagen', 'imagen_url', 'tipo',
             'categoria', 'descuento',
             'texto_boton', 'url_boton', 'establecimiento', 'establecimiento_nombre',
-            'servicio', 'servicio_detalle',
+            'servicio', 'servicio_id', 'citas_generadas_count',
             'activo', 'orden', 'fecha_inicio', 'fecha_fin',
             'estado', 'motivo_rechazo', 'es_pago', 'pagado',
             'creado_en', 'actualizado_en',
         ]
         read_only_fields = ['estado', 'motivo_rechazo', 'es_pago', 'pagado']
 
+    def get_citas_generadas_count(self, obj):
+        if hasattr(obj, 'citas_generadas_count'):
+            return obj.citas_generadas_count
+        return obj.citas_generadas.count()
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         request = self.context.get('request')
         if request and request.user and request.user.is_authenticated:
-            self.fields['servicio'].queryset = Servicio.objects.filter(
+            self.fields['servicio_id'].queryset = Servicio.objects.filter(
                 establecimiento__propietario=request.user
             )
 
@@ -439,7 +461,7 @@ class EmpresaAnuncioSerializer(serializers.ModelSerializer):
         servicio = attrs.get('servicio', getattr(self.instance, 'servicio', None))
         if servicio and establecimiento and servicio.establecimiento_id != establecimiento.id:
             raise serializers.ValidationError(
-                {'servicio': 'El servicio debe pertenecer al mismo establecimiento del anuncio.'}
+                {'servicio_id': 'El servicio debe pertenecer al mismo establecimiento del anuncio.'}
             )
         return attrs
 
