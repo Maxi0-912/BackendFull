@@ -74,7 +74,7 @@ class AnuncioAdmin(admin.ModelAdmin):
 
 @admin.register(TarifaAnuncio)
 class TarifaAnuncioAdmin(admin.ModelAdmin):
-    list_display = ('ubicaciones', 'monto', 'activa', 'actualizado_en')
+    list_display = ('ubicaciones', 'monto', 'duracion_dias', 'activa', 'actualizado_en')
     list_filter  = ('activa',)
 
 

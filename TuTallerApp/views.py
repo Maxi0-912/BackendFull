@@ -1,9 +1,8 @@
 ﻿import datetime
 import logging
-from decimal import Decimal
 from django.contrib.auth import authenticate
 from django.conf import settings
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -314,14 +313,7 @@ class CrearTipoServicioView(APIView):
 class AnunciosPublicosView(APIView):
     permission_classes = [AllowAny]
     def get(self, request):
-        today = datetime.date.today()
-        qs = Anuncio.objects.filter(activo=True, estado='aprobado').filter(
-            Q(es_pago=False) | Q(pagado=True)
-        ).filter(
-            Q(fecha_inicio__isnull=True) | Q(fecha_inicio__lte=today)
-        ).filter(
-            Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=today)
-        )
+        qs = Anuncio.objects.vigentes()
         categoria = request.query_params.get('categoria')
         if categoria:
             qs = qs.filter(categoria__iexact=categoria)
@@ -768,6 +760,23 @@ class EmpresaServicioDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+def _chequear_cupo_banner(ubicaciones, excluir_pk=None):
+    """Si 'banner' esta en ubicaciones y el cupo esta lleno, devuelve un mensaje
+    de error claro; si hay lugar (o no aplica), devuelve None."""
+    if 'banner' not in (ubicaciones or []):
+        return None
+    vigentes = Anuncio.objects.vigentes().filter(ubicaciones__contains=['banner'])
+    if excluir_pk:
+        vigentes = vigentes.exclude(pk=excluir_pk)
+    if vigentes.count() < settings.MAX_ANUNCIOS_BANNER:
+        return None
+    proximo = vigentes.filter(fecha_fin__isnull=False).order_by('fecha_fin').first()
+    if proximo and proximo.fecha_fin:
+        dias = max((proximo.fecha_fin - datetime.date.today()).days, 0)
+        return f'El banner esta completo. Quedan {dias} dia(s) para el proximo espacio disponible.'
+    return 'El banner esta completo por el momento.'
+
+
 class EmpresaAnunciosView(APIView):
     permission_classes = [EsEmpresa]
 
@@ -785,6 +794,9 @@ class EmpresaAnunciosView(APIView):
             if establecimiento is None:
                 return Response({'error': 'establecimiento requerido'}, status=status.HTTP_400_BAD_REQUEST)
             ubicaciones = s.validated_data.get('ubicaciones') or []
+            mensaje_banner = _chequear_cupo_banner(ubicaciones)
+            if mensaje_banner:
+                return Response({'ubicaciones': mensaje_banner}, status=status.HTTP_400_BAD_REQUEST)
             if 'banner' in ubicaciones:
                 es_pago = True
             else:
@@ -815,6 +827,10 @@ class EmpresaAnuncioDetailView(APIView):
             return _not_found()
         s = EmpresaAnuncioSerializer(anuncio, data=request.data, partial=True, context={'request': request})
         if s.is_valid():
+            ubicaciones = s.validated_data.get('ubicaciones', anuncio.ubicaciones)
+            mensaje_banner = _chequear_cupo_banner(ubicaciones, excluir_pk=anuncio.pk)
+            if mensaje_banner:
+                return Response({'ubicaciones': mensaje_banner}, status=status.HTTP_400_BAD_REQUEST)
             s.save(estado='pendiente', motivo_rechazo='')
             return Response(EmpresaAnuncioSerializer(anuncio, context={'request': request}).data)
         return Response(s.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -857,7 +873,7 @@ class EmpresaAnuncioPagoView(APIView):
         pago, creado = PagoPendiente.objects.get_or_create(
             anuncio=anuncio,
             defaults={
-                'monto': Decimal(settings.ANUNCIO_MONTO_COP).quantize(Decimal('0.01')),
+                'monto': TarifaAnuncio.resolver_monto(anuncio.ubicaciones),
                 'numero_nequi': settings.NEQUI_NUMERO,
             },
         )
@@ -908,7 +924,16 @@ class EmpresaAnuncioTarifaView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         monto = TarifaAnuncio.resolver_monto(ubicaciones)
-        return Response({'ubicaciones': ubicaciones, 'monto': monto})
+        duracion_dias = TarifaAnuncio.resolver_duracion_dias(ubicaciones)
+        banner_ocupados = Anuncio.objects.vigentes().filter(ubicaciones__contains=['banner']).count()
+        return Response({
+            'ubicaciones': ubicaciones,
+            'monto': monto,
+            'duracion_dias': duracion_dias,
+            'banner_cupo_maximo': settings.MAX_ANUNCIOS_BANNER,
+            'banner_cupo_ocupado': banner_ocupados,
+            'banner_disponible': banner_ocupados < settings.MAX_ANUNCIOS_BANNER,
+        })
 
 
 # ==============================
@@ -1361,5 +1386,12 @@ class AdminAnuncioValidarView(APIView):
             )
         anuncio.estado = nuevo_estado
         anuncio.motivo_rechazo = request.data.get('motivo_rechazo', '') if nuevo_estado == 'rechazado' else ''
-        anuncio.save(update_fields=['estado', 'motivo_rechazo', 'actualizado_en'])
+        update_fields = ['estado', 'motivo_rechazo', 'actualizado_en']
+        if nuevo_estado == 'aprobado' and not anuncio.es_pago:
+            hoy = datetime.date.today()
+            duracion = TarifaAnuncio.resolver_duracion_dias(anuncio.ubicaciones)
+            anuncio.fecha_inicio = hoy
+            anuncio.fecha_fin = hoy + datetime.timedelta(days=duracion)
+            update_fields += ['fecha_inicio', 'fecha_fin']
+        anuncio.save(update_fields=update_fields)
         return Response(AnuncioSerializer(anuncio, context={'request': request}).data)

@@ -1,4 +1,5 @@
-﻿import os
+﻿import datetime
+import os
 import secrets
 from decimal import Decimal
 
@@ -159,6 +160,18 @@ UBICACION_CHOICES = [
 UBICACIONES_VALIDAS = {c[0] for c in UBICACION_CHOICES}
 
 
+class AnuncioManager(models.Manager):
+    def vigentes(self):
+        hoy = datetime.date.today()
+        return self.filter(activo=True, estado='aprobado').filter(
+            models.Q(es_pago=False) | models.Q(pagado=True)
+        ).filter(
+            models.Q(fecha_inicio__isnull=True) | models.Q(fecha_inicio__lte=hoy)
+        ).filter(
+            models.Q(fecha_fin__isnull=True) | models.Q(fecha_fin__gte=hoy)
+        )
+
+
 class Anuncio(models.Model):
     TIPO_CHOICES = [
         ('imagen',       'Solo imagen'),
@@ -204,6 +217,8 @@ class Anuncio(models.Model):
     pagado         = models.BooleanField(default=False)
     creado_en      = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
+
+    objects = AnuncioManager()
 
     class Meta:
         ordering = ['orden', '-creado_en']
@@ -266,6 +281,7 @@ class Anuncio(models.Model):
 class TarifaAnuncio(models.Model):
     ubicaciones    = models.JSONField(default=list)
     monto          = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    duracion_dias  = models.PositiveIntegerField(default=30)
     activa         = models.BooleanField(default=True)
     creado_en      = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
@@ -277,13 +293,27 @@ class TarifaAnuncio(models.Model):
         return f'{sorted(self.ubicaciones)} - {self.monto}'
 
     @classmethod
-    def resolver_monto(cls, ubicaciones, tarifas=None):
+    def resolver_tarifa(cls, ubicaciones, tarifas=None):
         combinacion = sorted(set(ubicaciones or []))
         candidatas = tarifas if tarifas is not None else cls.objects.filter(activa=True)
         for tarifa in candidatas:
             if sorted(set(tarifa.ubicaciones or [])) == combinacion:
-                return tarifa.monto
-        return Decimal(settings.ANUNCIO_MONTO_COP)
+                return tarifa
+        return None
+
+    @classmethod
+    def resolver_monto(cls, ubicaciones, tarifas=None):
+        tarifa = cls.resolver_tarifa(ubicaciones, tarifas)
+        if tarifa:
+            return tarifa.monto
+        return Decimal(settings.ANUNCIO_MONTO_COP).quantize(Decimal('0.01'))
+
+    @classmethod
+    def resolver_duracion_dias(cls, ubicaciones, tarifas=None):
+        tarifa = cls.resolver_tarifa(ubicaciones, tarifas)
+        if tarifa:
+            return tarifa.duracion_dias
+        return cls._meta.get_field('duracion_dias').default
 
 
 class PagoPendiente(models.Model):
@@ -330,6 +360,12 @@ class PagoPendiente(models.Model):
             estado_previo = PagoPendiente.objects.filter(pk=self.pk).values_list('estado', flat=True).first()
             if estado_previo != 'verificado':
                 self.confirmado_en = timezone.now()
+                hoy = datetime.date.today()
+                duracion = TarifaAnuncio.resolver_duracion_dias(self.anuncio.ubicaciones)
                 self.anuncio.pagado = True
-                self.anuncio.save(update_fields=['pagado', 'actualizado_en'])
+                self.anuncio.fecha_inicio = hoy
+                self.anuncio.fecha_fin = hoy + datetime.timedelta(days=duracion)
+                self.anuncio.save(update_fields=[
+                    'pagado', 'fecha_inicio', 'fecha_fin', 'actualizado_en',
+                ])
         super().save(*args, **kwargs)

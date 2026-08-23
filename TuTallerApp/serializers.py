@@ -446,7 +446,7 @@ class EmpresaAnuncioSerializer(serializers.ModelSerializer):
             'estado', 'motivo_rechazo', 'es_pago', 'pagado',
             'creado_en', 'actualizado_en',
         ]
-        read_only_fields = ['estado', 'motivo_rechazo', 'es_pago', 'pagado']
+        read_only_fields = ['estado', 'motivo_rechazo', 'es_pago', 'pagado', 'fecha_inicio', 'fecha_fin']
 
     def get_citas_generadas_count(self, obj):
         if hasattr(obj, 'citas_generadas_count'):
