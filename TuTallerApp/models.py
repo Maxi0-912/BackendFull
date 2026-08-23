@@ -175,6 +175,10 @@ class Anuncio(models.Model):
         'Establecimiento', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='anuncios'
     )
+    servicio = models.ForeignKey(
+        'Servicio', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='anuncios'
+    )
     activo         = models.BooleanField(default=True)
     orden          = models.PositiveIntegerField(default=0)
     fecha_inicio   = models.DateField(null=True, blank=True)
@@ -217,6 +221,9 @@ class Anuncio(models.Model):
                 URLValidator(schemes=['http', 'https'])(self.url_boton)
             except ValidationError:
                 errors['url_boton'] = 'La URL debe comenzar con http:// o https://.'
+
+        if self.servicio_id and self.servicio.establecimiento_id != self.establecimiento_id:
+            errors['servicio'] = 'El servicio debe pertenecer al mismo establecimiento del anuncio.'
 
         if errors:
             raise ValidationError(errors)

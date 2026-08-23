@@ -352,9 +352,16 @@ class NotificacionAdminSerializer(serializers.ModelSerializer):
         fields = ['id', 'usuario', 'usuario_nombre', 'titulo', 'mensaje', 'leida', 'fecha']
 
 
+class ServicioMinSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Servicio
+        fields = ['id', 'nombre']
+
+
 class AnuncioSerializer(serializers.ModelSerializer):
     imagen_url             = serializers.SerializerMethodField()
     establecimiento_nombre = serializers.CharField(source='establecimiento.nombre', read_only=True)
+    servicio_detalle        = ServicioMinSerializer(source='servicio', read_only=True)
 
     class Meta:
         model  = Anuncio
@@ -362,6 +369,7 @@ class AnuncioSerializer(serializers.ModelSerializer):
             'id', 'titulo', 'descripcion', 'imagen', 'imagen_url', 'tipo',
             'categoria', 'descuento',
             'texto_boton', 'url_boton', 'establecimiento', 'establecimiento_nombre',
+            'servicio', 'servicio_detalle',
             'activo', 'orden', 'fecha_inicio', 'fecha_fin',
             'estado', 'motivo_rechazo', 'es_pago', 'pagado',
             'creado_en', 'actualizado_en',
@@ -381,6 +389,7 @@ IMAGEN_TAMANIO_MAXIMO = 3 * 1024 * 1024  # 3 MB
 class EmpresaAnuncioSerializer(serializers.ModelSerializer):
     imagen_url             = serializers.SerializerMethodField()
     establecimiento_nombre = serializers.CharField(source='establecimiento.nombre', read_only=True)
+    servicio_detalle        = ServicioMinSerializer(source='servicio', read_only=True)
 
     class Meta:
         model  = Anuncio
@@ -388,11 +397,20 @@ class EmpresaAnuncioSerializer(serializers.ModelSerializer):
             'id', 'titulo', 'descripcion', 'imagen', 'imagen_url', 'tipo',
             'categoria', 'descuento',
             'texto_boton', 'url_boton', 'establecimiento', 'establecimiento_nombre',
+            'servicio', 'servicio_detalle',
             'activo', 'orden', 'fecha_inicio', 'fecha_fin',
             'estado', 'motivo_rechazo', 'es_pago', 'pagado',
             'creado_en', 'actualizado_en',
         ]
         read_only_fields = ['estado', 'motivo_rechazo', 'es_pago', 'pagado']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            self.fields['servicio'].queryset = Servicio.objects.filter(
+                establecimiento__propietario=request.user
+            )
 
     def get_imagen_url(self, obj):
         request = self.context.get('request')
@@ -405,6 +423,15 @@ class EmpresaAnuncioSerializer(serializers.ModelSerializer):
         if request and value.propietario_id != request.user.id:
             raise serializers.ValidationError('El establecimiento no pertenece al usuario.')
         return value
+
+    def validate(self, attrs):
+        establecimiento = attrs.get('establecimiento', getattr(self.instance, 'establecimiento', None))
+        servicio = attrs.get('servicio', getattr(self.instance, 'servicio', None))
+        if servicio and establecimiento and servicio.establecimiento_id != establecimiento.id:
+            raise serializers.ValidationError(
+                {'servicio': 'El servicio debe pertenecer al mismo establecimiento del anuncio.'}
+            )
+        return attrs
 
     def validate_url_boton(self, value):
         if value and not value.lower().startswith(('http://', 'https://')):
