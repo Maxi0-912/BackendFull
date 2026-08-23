@@ -2,7 +2,7 @@
 from .models import (
     Rol, Usuario, TipoEstablecimiento, Establecimiento,
     TipoServicio, Servicio, Vehiculo,
-    Cita, Calificacion, Notificacion, Anuncio, PagoPendiente,
+    Cita, Calificacion, Notificacion, Anuncio, PagoPendiente, TarifaAnuncio,
 )
 
 
@@ -68,8 +68,14 @@ class NotificacionAdmin(admin.ModelAdmin):
 
 @admin.register(Anuncio)
 class AnuncioAdmin(admin.ModelAdmin):
-    list_display = ('titulo', 'categoria', 'establecimiento', 'servicio', 'activo', 'fecha_inicio', 'fecha_fin')
+    list_display = ('titulo', 'categoria', 'establecimiento', 'servicio', 'ubicaciones', 'activo', 'fecha_inicio', 'fecha_fin')
     list_filter  = ('categoria', 'activo')
+
+
+@admin.register(TarifaAnuncio)
+class TarifaAnuncioAdmin(admin.ModelAdmin):
+    list_display = ('ubicaciones', 'monto', 'activa', 'actualizado_en')
+    list_filter  = ('activa',)
 
 
 @admin.register(PagoPendiente)

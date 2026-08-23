@@ -1,5 +1,6 @@
 ﻿import os
 import secrets
+from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -148,6 +149,15 @@ class Notificacion(models.Model):
 IMAGEN_EXTENSIONES_VALIDAS = ('.jpg', '.jpeg', '.png', '.webp')
 IMAGEN_TAMANIO_MAXIMO = 3 * 1024 * 1024  # 3 MB
 
+# JSONField en vez de M2M a un catalogo: el conjunto de ubicaciones es fijo y
+# chico (2 valores), no crece por admin ni necesita atributos propios como
+# catalogo, asi que una tabla + through solo agregarian joins sin beneficio.
+UBICACION_CHOICES = [
+    ('perfil', 'Perfil del establecimiento'),
+    ('banner', 'Banner / carrusel del home'),
+]
+UBICACIONES_VALIDAS = {c[0] for c in UBICACION_CHOICES}
+
 
 class Anuncio(models.Model):
     TIPO_CHOICES = [
@@ -183,6 +193,7 @@ class Anuncio(models.Model):
         'Servicio', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='anuncios'
     )
+    ubicaciones    = models.JSONField(default=list, blank=True)
     activo         = models.BooleanField(default=True)
     orden          = models.PositiveIntegerField(default=0)
     fecha_inicio   = models.DateField(null=True, blank=True)
@@ -229,6 +240,15 @@ class Anuncio(models.Model):
         if self.servicio_id and self.servicio.establecimiento_id != self.establecimiento_id:
             errors['servicio'] = 'El servicio debe pertenecer al mismo establecimiento del anuncio.'
 
+        if not self.ubicaciones:
+            errors['ubicaciones'] = 'Debe indicar al menos una ubicacion.'
+        elif not isinstance(self.ubicaciones, list) or any(
+            u not in UBICACIONES_VALIDAS for u in self.ubicaciones
+        ):
+            errors['ubicaciones'] = (
+                f'Ubicaciones validas: {", ".join(sorted(UBICACIONES_VALIDAS))}.'
+            )
+
         if errors:
             raise ValidationError(errors)
 
@@ -241,6 +261,29 @@ class Anuncio(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class TarifaAnuncio(models.Model):
+    ubicaciones    = models.JSONField(default=list)
+    monto          = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    activa         = models.BooleanField(default=True)
+    creado_en      = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['ubicaciones']
+
+    def __str__(self):
+        return f'{sorted(self.ubicaciones)} - {self.monto}'
+
+    @classmethod
+    def resolver_monto(cls, ubicaciones, tarifas=None):
+        combinacion = sorted(set(ubicaciones or []))
+        candidatas = tarifas if tarifas is not None else cls.objects.filter(activa=True)
+        for tarifa in candidatas:
+            if sorted(set(tarifa.ubicaciones or [])) == combinacion:
+                return tarifa.monto
+        return Decimal(settings.ANUNCIO_MONTO_COP)
 
 
 class PagoPendiente(models.Model):

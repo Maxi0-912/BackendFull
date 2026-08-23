@@ -2,7 +2,8 @@
 from django.db.models import Avg
 from .models import (
     Rol, Usuario, TipoEstablecimiento, Establecimiento, FotoEstablecimiento,
-    TipoServicio, Servicio, Vehiculo, Cita, Calificacion, Notificacion, Anuncio
+    TipoServicio, Servicio, Vehiculo, Cita, Calificacion, Notificacion, Anuncio,
+    TarifaAnuncio, UBICACIONES_VALIDAS,
 )
 
 
@@ -384,6 +385,7 @@ class AnuncioSerializer(serializers.ModelSerializer):
         source='servicio', queryset=Servicio.objects.all(),
         write_only=True, required=False, allow_null=True,
     )
+    ubicaciones             = serializers.JSONField()
 
     class Meta:
         model  = Anuncio
@@ -391,7 +393,7 @@ class AnuncioSerializer(serializers.ModelSerializer):
             'id', 'titulo', 'descripcion', 'imagen', 'imagen_url', 'tipo',
             'categoria', 'descuento',
             'texto_boton', 'url_boton', 'establecimiento', 'establecimiento_nombre',
-            'servicio', 'servicio_id',
+            'servicio', 'servicio_id', 'ubicaciones',
             'activo', 'orden', 'fecha_inicio', 'fecha_fin',
             'estado', 'motivo_rechazo', 'es_pago', 'pagado',
             'creado_en', 'actualizado_en',
@@ -416,6 +418,8 @@ class EmpresaAnuncioSerializer(serializers.ModelSerializer):
         source='servicio', queryset=Servicio.objects.none(),
         write_only=True, required=False, allow_null=True,
     )
+    ubicaciones             = serializers.JSONField()
+    monto_resuelto          = serializers.SerializerMethodField()
     citas_generadas_count   = serializers.SerializerMethodField()
 
     class Meta:
@@ -424,7 +428,7 @@ class EmpresaAnuncioSerializer(serializers.ModelSerializer):
             'id', 'titulo', 'descripcion', 'imagen', 'imagen_url', 'tipo',
             'categoria', 'descuento',
             'texto_boton', 'url_boton', 'establecimiento', 'establecimiento_nombre',
-            'servicio', 'servicio_id', 'citas_generadas_count',
+            'servicio', 'servicio_id', 'ubicaciones', 'monto_resuelto', 'citas_generadas_count',
             'activo', 'orden', 'fecha_inicio', 'fecha_fin',
             'estado', 'motivo_rechazo', 'es_pago', 'pagado',
             'creado_en', 'actualizado_en',
@@ -435,6 +439,20 @@ class EmpresaAnuncioSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'citas_generadas_count'):
             return obj.citas_generadas_count
         return obj.citas_generadas.count()
+
+    def get_monto_resuelto(self, obj):
+        if not hasattr(self, '_tarifas_activas'):
+            self._tarifas_activas = list(TarifaAnuncio.objects.filter(activa=True))
+        return TarifaAnuncio.resolver_monto(obj.ubicaciones, tarifas=self._tarifas_activas)
+
+    def validate_ubicaciones(self, value):
+        if not value:
+            raise serializers.ValidationError('Debe indicar al menos una ubicacion.')
+        if not isinstance(value, list) or any(u not in UBICACIONES_VALIDAS for u in value):
+            raise serializers.ValidationError(
+                f'Ubicaciones validas: {", ".join(sorted(UBICACIONES_VALIDAS))}.'
+            )
+        return value
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

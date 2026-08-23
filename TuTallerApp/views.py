@@ -324,6 +324,9 @@ class AnunciosPublicosView(APIView):
         categoria = request.query_params.get('categoria')
         if categoria:
             qs = qs.filter(categoria__iexact=categoria)
+        ubicacion = request.query_params.get('ubicacion')
+        if ubicacion:
+            qs = qs.filter(ubicaciones__contains=[ubicacion])
         establecimiento_id = request.query_params.get('establecimiento') or request.query_params.get('establecimiento_id')
         if establecimiento_id and establecimiento_id.isdigit():
             qs = qs.filter(establecimiento_id=establecimiento_id)
@@ -772,8 +775,14 @@ class EmpresaAnunciosView(APIView):
             establecimiento = s.validated_data.get('establecimiento')
             if establecimiento is None:
                 return Response({'error': 'establecimiento requerido'}, status=status.HTTP_400_BAD_REQUEST)
-            total = Anuncio.objects.filter(establecimiento=establecimiento).count()
-            es_pago = total >= Anuncio.CUPO_GRATIS
+            ubicaciones = s.validated_data.get('ubicaciones') or []
+            if 'banner' in ubicaciones:
+                es_pago = True
+            else:
+                total = Anuncio.objects.filter(
+                    establecimiento=establecimiento, ubicaciones=['perfil']
+                ).count()
+                es_pago = total >= Anuncio.CUPO_GRATIS
             anuncio = s.save(estado='pendiente', motivo_rechazo='', es_pago=es_pago, pagado=False)
             return Response(
                 EmpresaAnuncioSerializer(anuncio, context={'request': request}).data,
