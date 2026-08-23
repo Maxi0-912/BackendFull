@@ -322,7 +322,10 @@ class AnunciosPublicosView(APIView):
         )
         categoria = request.query_params.get('categoria')
         if categoria:
-            qs = qs.filter(categoria=categoria)
+            qs = qs.filter(categoria__iexact=categoria)
+        establecimiento_id = request.query_params.get('establecimiento') or request.query_params.get('establecimiento_id')
+        if establecimiento_id and establecimiento_id.isdigit():
+            qs = qs.filter(establecimiento_id=establecimiento_id)
         qs = qs.order_by('orden', '-creado_en')
         return Response(AnuncioSerializer(qs, many=True, context={'request': request}).data)
 
@@ -1185,8 +1188,31 @@ class AdminAgendaView(APIView):
 class AdminAnuncioListView(APIView):
     permission_classes = [EsAdmin]
 
+    ORDERING_FIELDS = {'creado_en', '-creado_en', 'actualizado_en', '-actualizado_en'}
+
     def get(self, request):
-        return _alist(Anuncio.objects.all(), AnuncioSerializer, request)
+        qs = Anuncio.objects.all()
+
+        estado = request.query_params.get('estado')
+        if estado:
+            qs = qs.filter(estado__iexact=estado)
+
+        activo = request.query_params.get('activo')
+        if activo is not None:
+            qs = qs.filter(activo=activo.lower() in ('true', '1'))
+
+        categoria = request.query_params.get('categoria')
+        if categoria:
+            qs = qs.filter(categoria__iexact=categoria)
+
+        establecimiento_id = request.query_params.get('establecimiento') or request.query_params.get('establecimiento_id')
+        if establecimiento_id and establecimiento_id.isdigit():
+            qs = qs.filter(establecimiento_id=establecimiento_id)
+
+        ordering = request.query_params.get('ordering')
+        qs = qs.order_by(ordering if ordering in self.ORDERING_FIELDS else '-creado_en')
+
+        return _alist(qs, AnuncioSerializer, request)
     def post(self, request):
         return _acreate(request.data, AnuncioSerializer, request)
 

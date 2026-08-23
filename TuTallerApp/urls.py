@@ -60,6 +60,7 @@ urlpatterns = [
     path('tipos-servicio/',         TiposServicioView.as_view()),
     path('tipos-servicio/crear/',   CrearTipoServicioView.as_view()),
     path('anuncios/',               AnunciosPublicosView.as_view()),
+    path('api/anuncios/',           AnunciosPublicosView.as_view()),
 
     # Servicios
     path('servicios/establecimiento/<int:pk>/', ServiciosPorEstablecimientoView.as_view()),

@@ -2,7 +2,7 @@
 from .models import (
     Rol, Usuario, TipoEstablecimiento, Establecimiento,
     TipoServicio, Servicio, Vehiculo,
-    Cita, Calificacion, Notificacion, Anuncio,
+    Cita, Calificacion, Notificacion, Anuncio, PagoPendiente,
 )
 
 
@@ -70,3 +70,22 @@ class NotificacionAdmin(admin.ModelAdmin):
 class AnuncioAdmin(admin.ModelAdmin):
     list_display = ('titulo', 'categoria', 'establecimiento', 'activo', 'fecha_inicio', 'fecha_fin')
     list_filter  = ('categoria', 'activo')
+
+
+@admin.register(PagoPendiente)
+class PagoPendienteAdmin(admin.ModelAdmin):
+    list_display  = ('referencia', 'anuncio', 'monto', 'estado', 'creado_en')
+    list_filter   = ('estado',)
+    search_fields = ('referencia', 'anuncio__titulo')
+    readonly_fields = ('creado_en', 'confirmado_en')
+    actions = ('confirmar_pago',)
+
+    def confirmar_pago(self, request, queryset):
+        actualizados = 0
+        for pago in queryset.exclude(estado='verificado'):
+            pago.estado = 'verificado'
+            pago.admin_usuario = request.user
+            pago.save()
+            actualizados += 1
+        self.message_user(request, f'{actualizados} pago(s) confirmado(s)')
+    confirmar_pago.short_description = 'Confirmar pagos seleccionados'

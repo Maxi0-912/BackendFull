@@ -1,5 +1,12 @@
-﻿from django.contrib.auth.models import AbstractUser
+﻿import os
+import secrets
+
+from django.conf import settings
+from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 from django.db import models
+from django.utils import timezone
 
 
 class Rol(models.Model):
@@ -134,6 +141,10 @@ class Notificacion(models.Model):
         return f"{self.usuario.username} - {self.titulo}"
 
 
+IMAGEN_EXTENSIONES_VALIDAS = ('.jpg', '.jpeg', '.png', '.webp')
+IMAGEN_TAMANIO_MAXIMO = 3 * 1024 * 1024  # 3 MB
+
+
 class Anuncio(models.Model):
     TIPO_CHOICES = [
         ('imagen',       'Solo imagen'),
@@ -184,3 +195,87 @@ class Anuncio(models.Model):
     @property
     def visible_al_publico(self):
         return self.activo and self.estado == 'aprobado' and (not self.es_pago or self.pagado)
+
+    def clean(self):
+        super().clean()
+        errors = {}
+
+        if self.imagen and self._imagen_cambio():
+            extension = os.path.splitext(self.imagen.name or '')[1].lower()
+            if extension not in IMAGEN_EXTENSIONES_VALIDAS:
+                errors['imagen'] = 'La imagen debe ser JPG, PNG o WEBP.'
+            else:
+                try:
+                    tamanio = self.imagen.size
+                except (ValueError, OSError):
+                    tamanio = None
+                if tamanio and tamanio > IMAGEN_TAMANIO_MAXIMO:
+                    errors['imagen'] = 'La imagen no puede superar los 3 MB.'
+
+        if self.url_boton:
+            try:
+                URLValidator(schemes=['http', 'https'])(self.url_boton)
+            except ValidationError:
+                errors['url_boton'] = 'La URL debe comenzar con http:// o https://.'
+
+        if errors:
+            raise ValidationError(errors)
+
+    def _imagen_cambio(self):
+        if not self.pk:
+            return True
+        imagen_previa = Anuncio.objects.filter(pk=self.pk).values_list('imagen', flat=True).first()
+        return imagen_previa != self.imagen.name
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class PagoPendiente(models.Model):
+    ESTADO_CHOICES = [
+        ('pendiente',  'Pendiente de verificacion'),
+        ('verificado', 'Verificado'),
+        ('cancelado',  'Cancelado'),
+    ]
+
+    anuncio = models.OneToOneField(
+        Anuncio, on_delete=models.CASCADE, related_name='pago_pendiente'
+    )
+    referencia       = models.CharField(max_length=50, unique=True)
+    monto            = models.DecimalField(max_digits=10, decimal_places=2, default=15000.00)
+    estado           = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
+    numero_nequi     = models.CharField(max_length=20, default='+57 315 123 4567')
+    descripcion      = models.TextField(blank=True)
+    creado_en        = models.DateTimeField(auto_now_add=True)
+    confirmado_en    = models.DateTimeField(null=True, blank=True)
+    admin_usuario    = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='pagos_confirmados'
+    )
+
+    class Meta:
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        return f'{self.referencia} - {self.get_estado_display()}'
+
+    def _generar_referencia(self):
+        prefijo = f"TT{timezone.now().strftime('%Y%m%d')}"
+        for _ in range(5):
+            candidato = f'{prefijo}{secrets.token_hex(3).upper()}'
+            if not PagoPendiente.objects.filter(referencia=candidato).exists():
+                return candidato
+        return f'{prefijo}{secrets.token_hex(3).upper()}'
+
+    def save(self, *args, **kwargs):
+        if not self.referencia:
+            self.referencia = self._generar_referencia()
+
+        if self.pk and self.estado == 'verificado':
+            estado_previo = PagoPendiente.objects.filter(pk=self.pk).values_list('estado', flat=True).first()
+            if estado_previo != 'verificado':
+                self.confirmado_en = timezone.now()
+                self.anuncio.pagado = True
+                self.anuncio.save(update_fields=['pagado', 'actualizado_en'])
+        super().save(*args, **kwargs)
