@@ -13,7 +13,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import (
     Rol, Usuario, TipoEstablecimiento, Establecimiento,
     TipoServicio, Servicio, Vehiculo,
-    Cita, Calificacion, Notificacion, Anuncio, PagoPendiente,
+    Cita, Calificacion, Notificacion, Anuncio, PagoPendiente, TarifaAnuncio,
+    UBICACIONES_VALIDAS,
 )
 from .serializers import (
     RolSerializer, RegisterSerializer, UpdateUsuarioSerializer, UsuarioAdminSerializer,
@@ -893,6 +894,21 @@ class EmpresaAnuncioCupoView(APIView):
                 'requiere_pago': total >= Anuncio.CUPO_GRATIS,
             })
         return Response(data)
+
+
+class EmpresaAnuncioTarifaView(APIView):
+    permission_classes = [EsEmpresa]
+
+    def get(self, request):
+        crudo = request.query_params.get('ubicaciones', '')
+        ubicaciones = [u for u in crudo.split(',') if u]
+        if not ubicaciones or any(u not in UBICACIONES_VALIDAS for u in ubicaciones):
+            return Response(
+                {'error': f'Ubicaciones validas: {", ".join(sorted(UBICACIONES_VALIDAS))}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        monto = TarifaAnuncio.resolver_monto(ubicaciones)
+        return Response({'ubicaciones': ubicaciones, 'monto': monto})
 
 
 # ==============================

@@ -15,6 +15,7 @@ from .views import (
     DashboardEmpresaView, MisEstablecimientosView, MiEstablecimientoDetailView,
     EmpresaCitasView, EmpresaServiciosView, EmpresaServicioDetailView,
     EmpresaAnunciosView, EmpresaAnuncioDetailView, EmpresaAnuncioCupoView, EmpresaAnuncioPagoView,
+    EmpresaAnuncioTarifaView,
     AdminDashboardView,
     AdminUsuarioListView, AdminUsuarioDetailView,
     AdminEstablecimientoDetailView,
@@ -93,6 +94,7 @@ urlpatterns = [
     path('empresa/servicios/<int:pk>/',             EmpresaServicioDetailView.as_view()),
     path('api/empresa/anuncios/',                   EmpresaAnunciosView.as_view()),
     path('api/empresa/anuncios/cupo/',              EmpresaAnuncioCupoView.as_view()),
+    path('api/empresa/anuncios/tarifa/',            EmpresaAnuncioTarifaView.as_view()),
     path('api/empresa/anuncios/<int:pk>/',          EmpresaAnuncioDetailView.as_view()),
     path('api/empresa/anuncios/<int:pk>/pago/',     EmpresaAnuncioPagoView.as_view()),
 
