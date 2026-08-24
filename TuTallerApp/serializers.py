@@ -216,11 +216,18 @@ class CitaCreateSerializer(serializers.ModelSerializer):
         ]
 
 
+class AnuncioOrigenMinSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Anuncio
+        fields = ['id', 'titulo', 'descuento']
+
+
 class CitaResponseSerializer(serializers.ModelSerializer):
     establecimiento_nombre = serializers.CharField(source='establecimiento.nombre', read_only=True)
     servicio_nombre        = serializers.SerializerMethodField()
     vehiculo_placa         = serializers.SerializerMethodField()
     tiene_resena           = serializers.SerializerMethodField()
+    anuncio_origen_detalle = AnuncioOrigenMinSerializer(source='anuncio_origen', read_only=True)
 
     class Meta:
         model  = Cita
@@ -229,6 +236,7 @@ class CitaResponseSerializer(serializers.ModelSerializer):
             'establecimiento', 'establecimiento_nombre',
             'servicio', 'servicio_nombre', 'servicio_texto',
             'vehiculo_placa', 'tiene_resena',
+            'anuncio_origen', 'anuncio_origen_detalle',
             'descripcion', 'comentario_empresa',
         ]
 
@@ -264,12 +272,6 @@ class CitaAdminSerializer(serializers.ModelSerializer):
 
     def get_vehiculo_placa(self, obj):
         return obj.vehiculo.placa if obj.vehiculo else None
-
-
-class AnuncioOrigenMinSerializer(serializers.ModelSerializer):
-    class Meta:
-        model  = Anuncio
-        fields = ['id', 'titulo']
 
 
 class EmpresaCitaSerializer(serializers.ModelSerializer):
