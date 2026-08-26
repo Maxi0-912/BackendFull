@@ -87,15 +87,23 @@ class LoginView(APIView):
 class GoogleLoginView(APIView):
     permission_classes = [AllowAny]
 
+    # Autoregistro solo puede elegir Cliente o Empresa; Admin (1) nunca se
+    # acepta desde este endpoint publico.
+    ROLES_AUTOREGISTRO_PERMITIDOS = {2, 3}
+
     def post(self, request):
-        id_token_str = request.data.get('idToken') or request.data.get('id_token', '')
-        if not id_token_str:
-            return Response({'error': 'idToken requerido'}, status=status.HTTP_400_BAD_REQUEST)
+        credential = (
+            request.data.get('credential')
+            or request.data.get('idToken')
+            or request.data.get('id_token', '')
+        )
+        if not credential:
+            return Response({'error': 'credential requerido'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             from google.oauth2 import id_token as google_id_token
             from google.auth.transport import requests as google_requests
             idinfo = google_id_token.verify_oauth2_token(
-                id_token_str,
+                credential,
                 google_requests.Request(),
                 settings.GOOGLE_CLIENT_ID,
             )
@@ -108,35 +116,64 @@ class GoogleLoginView(APIView):
             return Response({'error': 'Token de Google invalido'},
                             status=status.HTTP_400_BAD_REQUEST)
 
+        # El email (y el resto de los datos) sale siempre del token ya
+        # verificado, nunca del body — el body solo puede aportar 'rol'.
         google_id  = idinfo['sub']
         email      = idinfo.get('email', '')
         first_name = idinfo.get('given_name', '')
         last_name  = idinfo.get('family_name', '')
+        foto       = idinfo.get('picture', '')
 
         user = Usuario.objects.filter(google_id=google_id).first()
         if not user and email:
             user = Usuario.objects.filter(email=email).first()
-        if not user:
-            base = email.split('@')[0] if email else f'user{google_id[:8]}'
-            username = base
-            counter = 1
-            while Usuario.objects.filter(username=username).exists():
-                username = f'{base}{counter}'
-                counter += 1
-            rol_cliente = Rol.objects.filter(nombre__iexact='cliente').first()
-            user = Usuario.objects.create_user(
-                username=username, email=email,
-                first_name=first_name, last_name=last_name,
-                google_id=google_id,
-            )
-            if rol_cliente:
-                user.rol = rol_cliente
-                user.save(update_fields=['rol'])
-        elif not user.google_id:
-            user.google_id = google_id
-            user.save(update_fields=['google_id'])
 
-        return Response(_auth_response(user, request))
+        if user:
+            if not user.google_id:
+                user.google_id = google_id
+                user.save(update_fields=['google_id'])
+            return Response(_auth_response(user, request))
+
+        rol_crudo = request.data.get('rol')
+        if rol_crudo is None:
+            return Response({
+                'requiere_rol': True,
+                'email': email,
+                'nombre': first_name,
+                'apellido': last_name,
+                'foto': foto,
+            })
+
+        try:
+            rol_id = int(rol_crudo)
+        except (TypeError, ValueError):
+            rol_id = None
+        if rol_id not in self.ROLES_AUTOREGISTRO_PERMITIDOS:
+            return Response(
+                {'error': 'rol debe ser 2 (Cliente) o 3 (Empresa).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        rol = Rol.objects.filter(pk=rol_id).exclude(nombre__iexact='admin').first()
+        if not rol:
+            return Response({'error': 'rol invalido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        base = email.split('@')[0] if email else f'user{google_id[:8]}'
+        username = base
+        counter = 1
+        while Usuario.objects.filter(username=username).exists():
+            username = f'{base}{counter}'
+            counter += 1
+
+        user = Usuario.objects.create_user(
+            username=username, email=email,
+            first_name=first_name, last_name=last_name,
+            google_id=google_id,
+        )
+        user.rol = rol
+        user.set_unusable_password()
+        user.save(update_fields=['rol', 'password'])
+
+        return Response(_auth_response(user, request), status=status.HTTP_201_CREATED)
 
 
 class RegisterView(APIView):
