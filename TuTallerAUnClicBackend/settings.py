@@ -21,6 +21,10 @@ NEQUI_TITULAR = config('NEQUI_TITULAR', default='')
 ANUNCIO_MONTO_COP = config('ANUNCIO_MONTO_COP', default=0, cast=int)
 MAX_ANUNCIOS_BANNER = config('MAX_ANUNCIOS_BANNER', default=8, cast=int)
 
+# JSON completo de la cuenta de servicio de Firebase, como string (nunca un
+# archivo en el repo). Se parsea en TuTallerApp/push.py al inicializar.
+FIREBASE_CREDENTIALS_JSON = config('FIREBASE_CREDENTIALS_JSON', default='')
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',

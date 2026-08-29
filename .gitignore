@@ -15,6 +15,9 @@ db.sqlite3
 # Media (por el momento)
 media/
 
+# Output de collectstatic
+staticfiles/
+
 # Archivos del sistema
 .DS_Store
 Thumbs.db

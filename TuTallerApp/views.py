@@ -12,9 +12,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import (
     Rol, Usuario, TipoEstablecimiento, Establecimiento,
     TipoServicio, Servicio, Vehiculo,
-    Cita, Calificacion, Notificacion, Anuncio, PagoPendiente, TarifaAnuncio,
+    Cita, Calificacion, Notificacion, DispositivoToken, Anuncio, PagoPendiente, TarifaAnuncio,
     UBICACIONES_VALIDAS,
 )
+from .push import enviar_push
 from .serializers import (
     RolSerializer, RegisterSerializer, UpdateUsuarioSerializer, UsuarioAdminSerializer,
     TipoEstablecimientoSerializer, TipoServicioSerializer,
@@ -448,8 +449,8 @@ class CrearCitaView(APIView):
             )
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        nombre_cliente = request.user.get_full_name() or request.user.username
         try:
-            nombre_cliente = request.user.get_full_name() or request.user.username
             Notificacion.objects.create(
                 usuario=cita.establecimiento.propietario,
                 titulo='Nueva cita',
@@ -457,6 +458,12 @@ class CrearCitaView(APIView):
             )
         except Exception:
             pass
+        enviar_push(
+            cita.establecimiento.propietario,
+            'Nueva cita',
+            f'{nombre_cliente} agendó para el {cita.fecha} a las {cita.hora}',
+            data={'tipo': 'cita_creada', 'cita_id': cita.id},
+        )
         return Response(CitaResponseSerializer(cita).data, status=status.HTTP_201_CREATED)
 
 
@@ -565,6 +572,31 @@ class CambiarEstadoCitaView(APIView):
                         )
             except Exception:
                 pass
+            if nuevo_estado == 'confirmada':
+                enviar_push(
+                    cita.usuario, 'Cita confirmada',
+                    f'Tu cita del {cita.fecha} a las {cita.hora} fue confirmada',
+                    data={'tipo': 'cita_confirmada', 'cita_id': cita.id},
+                )
+            elif nuevo_estado == 'finalizada':
+                enviar_push(
+                    cita.usuario, 'Servicio finalizado',
+                    'Tu servicio fue completado. ¡Dejanos tu reseña!',
+                    data={'tipo': 'cita_finalizada', 'cita_id': cita.id},
+                )
+            elif nuevo_estado == 'cancelada':
+                if is_owner:
+                    enviar_push(
+                        cita.establecimiento.propietario, 'Cita cancelada',
+                        f'El cliente canceló la cita del {cita.fecha} a las {cita.hora}',
+                        data={'tipo': 'cita_cancelada', 'cita_id': cita.id},
+                    )
+                else:
+                    enviar_push(
+                        cita.usuario, 'Cita cancelada',
+                        f'El establecimiento canceló tu cita del {cita.fecha} a las {cita.hora}',
+                        data={'tipo': 'cita_cancelada', 'cita_id': cita.id},
+                    )
         return Response(CitaResponseSerializer(cita).data)
 
 
@@ -647,6 +679,35 @@ class MarcarLeidaView(APIView):
         notif.leida = True
         notif.save(update_fields=['leida'])
         return Response({'detail': 'OK'})
+
+
+class RegistrarDispositivoTokenView(APIView):
+    def post(self, request):
+        token = str(request.data.get('token', '') or '').strip()
+        if not token:
+            return Response({'error': 'token requerido'}, status=status.HTTP_400_BAD_REQUEST)
+        plataforma = request.data.get('plataforma', 'android')
+        if plataforma not in dict(DispositivoToken.PLATAFORMA_CHOICES):
+            plataforma = 'android'
+        # update_or_create por token: si el token ya existia con otro usuario
+        # (mismo telefono, otra cuenta), lo reasigna en vez de duplicar fila.
+        dispositivo, creado = DispositivoToken.objects.update_or_create(
+            token=token,
+            defaults={'usuario': request.user, 'plataforma': plataforma, 'activo': True},
+        )
+        return Response(
+            {'id': dispositivo.id, 'plataforma': dispositivo.plataforma, 'activo': dispositivo.activo},
+            status=status.HTTP_201_CREATED if creado else status.HTTP_200_OK,
+        )
+
+
+class DesactivarDispositivoTokenView(APIView):
+    def post(self, request):
+        token = str(request.data.get('token', '') or '').strip()
+        if not token:
+            return Response({'error': 'token requerido'}, status=status.HTTP_400_BAD_REQUEST)
+        DispositivoToken.objects.filter(token=token, usuario=request.user).update(activo=False)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ==============================
@@ -1431,4 +1492,24 @@ class AdminAnuncioValidarView(APIView):
             anuncio.fecha_fin = hoy + datetime.timedelta(days=duracion)
             update_fields += ['fecha_inicio', 'fecha_fin']
         anuncio.save(update_fields=update_fields)
+
+        if anuncio.establecimiento_id:
+            propietario = anuncio.establecimiento.propietario
+            nombre_anuncio = anuncio.titulo or f'#{anuncio.id}'
+            if nuevo_estado == 'aprobado':
+                titulo_msg = 'Anuncio aprobado'
+                mensaje_msg = f'Tu anuncio "{nombre_anuncio}" fue aprobado y ya está visible.'
+            else:
+                motivo = anuncio.motivo_rechazo or 'sin motivo especificado'
+                titulo_msg = 'Anuncio rechazado'
+                mensaje_msg = f'Tu anuncio "{nombre_anuncio}" fue rechazado: {motivo}'
+            try:
+                Notificacion.objects.create(usuario=propietario, titulo=titulo_msg, mensaje=mensaje_msg)
+            except Exception:
+                pass
+            enviar_push(
+                propietario, titulo_msg, mensaje_msg,
+                data={'tipo': f'anuncio_{nuevo_estado}', 'anuncio_id': anuncio.id},
+            )
+
         return Response(AnuncioSerializer(anuncio, context={'request': request}).data)

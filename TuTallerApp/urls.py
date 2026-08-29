@@ -12,6 +12,7 @@ from .views import (
     CambiarEstadoCitaView, AgregarComentarioEmpresaView,
     CrearCalificacionView, CalificacionesPorEstablecimientoView,
     MisNotificacionesView, MarcarLeidaView,
+    RegistrarDispositivoTokenView, DesactivarDispositivoTokenView,
     DashboardEmpresaView, MisEstablecimientosView, MiEstablecimientoDetailView,
     EmpresaCitasView, EmpresaServiciosView, EmpresaServicioDetailView,
     EmpresaAnunciosView, EmpresaAnuncioDetailView, EmpresaAnuncioCupoView, EmpresaAnuncioPagoView,
@@ -82,6 +83,10 @@ urlpatterns = [
     # Notificaciones
     path('notificaciones/',                MisNotificacionesView.as_view()),
     path('notificaciones/<int:pk>/leida/', MarcarLeidaView.as_view()),
+
+    # Dispositivos (push FCM)
+    path('usuarios/dispositivos/registrar/',  RegistrarDispositivoTokenView.as_view()),
+    path('usuarios/dispositivos/desactivar/', DesactivarDispositivoTokenView.as_view()),
 
     # Empresa
     path('empresa/dashboard/',                     DashboardEmpresaView.as_view()),

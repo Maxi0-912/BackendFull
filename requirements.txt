@@ -12,3 +12,4 @@ gunicorn>=21.2
 whitenoise>=6.6
 cloudinary>=1.40
 django-cloudinary-storage>=0.3
+firebase-admin>=6.5

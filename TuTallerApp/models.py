@@ -147,6 +147,26 @@ class Notificacion(models.Model):
         return f"{self.usuario.username} - {self.titulo}"
 
 
+class DispositivoToken(models.Model):
+    PLATAFORMA_CHOICES = [
+        ('android', 'Android'),
+        ('web',     'Web'),
+        ('ios',     'iOS'),
+    ]
+
+    usuario              = models.ForeignKey(
+        Usuario, on_delete=models.CASCADE, related_name='dispositivos_token'
+    )
+    token                = models.CharField(max_length=255, unique=True)
+    plataforma           = models.CharField(max_length=10, choices=PLATAFORMA_CHOICES, default='android')
+    activo               = models.BooleanField(default=True)
+    fecha_registro       = models.DateTimeField(auto_now_add=True)
+    ultima_actualizacion = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'{self.usuario.username} - {self.plataforma} - {self.token[:12]}...'
+
+
 IMAGEN_EXTENSIONES_VALIDAS = ('.jpg', '.jpeg', '.png', '.webp')
 IMAGEN_TAMANIO_MAXIMO = 3 * 1024 * 1024  # 3 MB
 
