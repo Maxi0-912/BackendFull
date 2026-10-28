@@ -52,6 +52,16 @@ class RegisterSerializer(serializers.Serializer):
 
 
 class UpdateUsuarioSerializer(serializers.ModelSerializer):
+    """Edicion del propio perfil.
+
+    El rol NO es editable libremente: solo se acepta cuando el usuario aun no
+    tiene rol (cuentas creadas con el login de Google antiguo, que quedaban sin
+    rol y lo elegian despues) y solo Cliente o Empresa. Cualquier cambio de rol
+    posterior es una accion administrativa (AdminUsuarioDetailView).
+    Tampoco se expone is_active: desactivar la cuenta va por su propio endpoint.
+    """
+    ROLES_AUTOASIGNABLES = {'cliente', 'empresa'}
+
     password  = serializers.CharField(write_only=True, required=False, min_length=6)
     rol       = serializers.IntegerField(required=False, allow_null=True, write_only=True)
 
@@ -65,9 +75,25 @@ class UpdateUsuarioSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('El nombre de usuario ya existe.')
         return value
 
+    def validate_is_active(self, value):
+        # El usuario solo puede desactivar su propia cuenta, nunca reactivarla
+        # (una cuenta desactivada por el admin no debe poder volver sola).
+        if value is True and self.instance and not self.instance.is_active:
+            raise serializers.ValidationError('No se puede reactivar la cuenta desde el perfil.')
+        return value
+
     def validate_rol(self, value):
-        if value and Rol.objects.filter(pk=value, nombre__iexact='admin').exists():
-            raise serializers.ValidationError('No se puede autoasignar el rol de administrador.')
+        if value is None:
+            return value
+        actual = getattr(self.instance, 'rol', None)
+        if actual is not None:
+            if actual.pk == value:
+                return value  # reenviar el mismo rol no cambia nada
+            raise serializers.ValidationError(
+                'El rol no se puede cambiar desde el perfil. Solicitalo al administrador.')
+        rol = Rol.objects.filter(pk=value).first()
+        if not rol or rol.nombre.lower() not in self.ROLES_AUTOASIGNABLES:
+            raise serializers.ValidationError('Rol invalido: solo Cliente o Empresa.')
         return value
 
     def update(self, instance, validated_data):
@@ -77,11 +103,8 @@ class UpdateUsuarioSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         if password:
             instance.set_password(password)
-        if rol_id is not None:
-            try:
-                instance.rol = Rol.objects.get(pk=rol_id)
-            except Rol.DoesNotExist:
-                pass
+        if rol_id is not None and instance.rol is None:
+            instance.rol = Rol.objects.get(pk=rol_id)
         instance.save()
         return instance
 

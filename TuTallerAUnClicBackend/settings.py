@@ -5,8 +5,16 @@ from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-1234567890')
-DEBUG = config('DEBUG', default=True, cast=bool)
+# DEBUG apagado por defecto: solo se enciende poniendo DEBUG=True en el .env
+# de desarrollo local. Nunca en un servidor (expone rutas, codigo y settings).
+DEBUG = config('DEBUG', default=False, cast=bool)
+
+_SECRET_KEY_INSEGURA = 'django-insecure-solo-para-desarrollo-local'
+SECRET_KEY = config('SECRET_KEY', default=_SECRET_KEY_INSEGURA)
+if not DEBUG and SECRET_KEY == _SECRET_KEY_INSEGURA:
+    # Con la clave por defecto cualquiera podria firmar JWT validos (incluido admin).
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured('Falta la variable de entorno SECRET_KEY en el servidor.')
 
 ALLOWED_HOSTS = config(
     'ALLOWED_HOSTS',
@@ -141,6 +149,12 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': None,
     'PAGE_SIZE': None,
+    # Limite de intentos en los endpoints de autenticacion (login, Google,
+    # registro y renovacion de token). Se aplica por IP via ScopedRateThrottle.
+    'DEFAULT_THROTTLE_RATES': {
+        'auth': config('THROTTLE_AUTH', default='10/min'),
+        'auth_refresh': config('THROTTLE_AUTH_REFRESH', default='20/min'),
+    },
 }
 
 SIMPLE_JWT = {
@@ -169,6 +183,10 @@ if not DEBUG:
     CSRF_TRUSTED_ORIGINS = [
         origin for origin in config('CSRF_TRUSTED_ORIGINS', default='').split(',') if origin
     ]
+    # HSTS: el navegador solo hablara HTTPS con el backend (30 dias, sin preload).
+    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=2592000, cast=int)
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = 'same-origin'
 
 LOGGING = {
     'version': 1,

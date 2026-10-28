@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import (
@@ -69,6 +70,8 @@ def _not_found(msg='No encontrado'):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
 
     def post(self, request):
         username = request.data.get('username', '').strip()
@@ -87,6 +90,8 @@ class LoginView(APIView):
 
 class GoogleLoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
 
     # Autoregistro solo puede elegir Cliente o Empresa; Admin (1) nunca se
     # acepta desde este endpoint publico.
@@ -179,6 +184,8 @@ class GoogleLoginView(APIView):
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -304,6 +311,8 @@ class CitasOcupadasView(APIView):
 
 
 class CrearEstablecimientoView(APIView):
+    permission_classes = [EsEmpresa | EsAdmin]
+
     def post(self, request):
         data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
         if 'lat' in data and 'latitud' not in data:
@@ -340,6 +349,8 @@ class TiposServicioView(APIView):
 
 
 class CrearTipoServicioView(APIView):
+    permission_classes = [EsEmpresa | EsAdmin]
+
     def post(self, request):
         s = TipoServicioSerializer(data=request.data)
         if s.is_valid():
@@ -421,16 +432,65 @@ def _resolver_anuncio_origen(anuncio_id, establecimiento_id):
     return anuncio
 
 
+def _vehiculo_para_cita(placa, user):
+    """Devuelve (vehiculo, error). Nunca reutiliza el vehiculo de otro usuario."""
+    placa = str(placa or '').strip().upper()
+    if not placa:
+        return None, None
+    vehiculo = Vehiculo.objects.filter(placa=placa).first()
+    if vehiculo is None:
+        vehiculo = Vehiculo.objects.create(
+            placa=placa, usuario=user, marca='', modelo='', tipo='carro')
+        return vehiculo, None
+    if vehiculo.usuario_id != user.pk:
+        return None, Response(
+            {'error': 'Esa placa ya esta registrada por otro usuario. '
+                      'Verificala o comunicate con soporte.'},
+            status=status.HTTP_400_BAD_REQUEST)
+    return vehiculo, None
+
+
+def _validar_fecha_cita(fecha, hora=None):
+    """La cita debe ser hoy o en el futuro. Devuelve un Response de error o None."""
+    if not fecha:
+        return Response({'error': 'fecha requerida'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        f = fecha if isinstance(fecha, datetime.date) else datetime.date.fromisoformat(str(fecha)[:10])
+    except ValueError:
+        return Response({'error': 'fecha invalida (formato AAAA-MM-DD)'},
+                        status=status.HTTP_400_BAD_REQUEST)
+    hoy = datetime.date.today()
+    if f < hoy:
+        return Response({'error': 'No se puede agendar una cita en una fecha pasada.'},
+                        status=status.HTTP_400_BAD_REQUEST)
+    if f == hoy and hora:
+        try:
+            h = datetime.datetime.strptime(str(hora).strip()[:5], '%H:%M').time()
+        except ValueError:
+            h = None  # formato de hora desconocido: no bloquear por eso
+        if h and h < datetime.datetime.now().time().replace(second=0, microsecond=0):
+            return Response({'error': 'No se puede agendar una cita en una hora pasada.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+    return None
+
+
 class CrearCitaView(APIView):
     def post(self, request):
         data = request.data
-        placa = str(data.get('placa', '') or '').strip().upper()
-        vehiculo = None
-        if placa:
-            vehiculo, _ = Vehiculo.objects.get_or_create(
-                placa=placa,
-                defaults={'usuario': request.user, 'marca': '', 'modelo': '', 'tipo': 'carro'},
-            )
+        error = _validar_fecha_cita(data.get('fecha'), data.get('hora'))
+        if error:
+            return error
+        est_id = data.get('establecimiento')
+        try:
+            est_ok = Establecimiento.objects.filter(pk=int(est_id)).exists()
+        except (TypeError, ValueError):
+            est_ok = False
+        if not est_ok:
+            return Response({'error': 'El establecimiento indicado no existe.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        vehiculo, error = _vehiculo_para_cita(data.get('placa'), request.user)
+        if error:
+            return error
         anuncio_origen = _resolver_anuncio_origen(
             data.get('anuncio_origen_id') or data.get('anuncio_origen'),
             data.get('establecimiento'),
@@ -447,8 +507,10 @@ class CrearCitaView(APIView):
                 descripcion=data.get('descripcion', '') or '',
                 servicio_texto=data.get('servicio_texto', '') or '',
             )
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception('Error creando cita')
+            return Response({'error': 'No se pudo crear la cita. Revisa los datos enviados.'},
+                            status=status.HTTP_400_BAD_REQUEST)
         nombre_cliente = request.user.get_full_name() or request.user.username
         try:
             Notificacion.objects.create(
@@ -499,6 +561,14 @@ class EditarCitaView(APIView):
         except Cita.DoesNotExist:
             return _not_found('Cita no encontrada')
         data = request.data
+        if 'fecha' in data or 'hora' in data:
+            error = _validar_fecha_cita(data.get('fecha', cita.fecha), data.get('hora', cita.hora))
+            if error:
+                return error
+        if 'establecimiento' in data and not Establecimiento.objects.filter(
+                pk=data.get('establecimiento') or 0).exists():
+            return Response({'error': 'El establecimiento indicado no existe.'},
+                            status=status.HTTP_400_BAD_REQUEST)
         for field in ['fecha', 'hora', 'descripcion']:
             if field in data:
                 setattr(cita, field, data[field])
@@ -506,12 +576,10 @@ class EditarCitaView(APIView):
             cita.establecimiento_id = data['establecimiento']
         if 'servicio' in data:
             cita.servicio_id = data['servicio'] or None
-        placa = str(data.get('placa', '') or '').strip().upper()
-        if placa:
-            vehiculo, _ = Vehiculo.objects.get_or_create(
-                placa=placa,
-                defaults={'usuario': request.user, 'marca': '', 'modelo': '', 'tipo': 'carro'},
-            )
+        if str(data.get('placa', '') or '').strip():
+            vehiculo, error = _vehiculo_para_cita(data.get('placa'), request.user)
+            if error:
+                return error
             cita.vehiculo = vehiculo
         cita.save()
         return Response(CitaResponseSerializer(cita).data)
@@ -540,6 +608,12 @@ class CambiarEstadoCitaView(APIView):
         nuevo_estado = request.data.get('estado')
         if not nuevo_estado:
             return Response({'error': 'estado requerido'}, status=status.HTTP_400_BAD_REQUEST)
+        if nuevo_estado not in dict(Cita.ESTADO_CHOICES):
+            return Response({'error': 'estado invalido'}, status=status.HTTP_400_BAD_REQUEST)
+        # El cliente solo puede cancelar su cita; confirmar/finalizar es del establecimiento.
+        if not is_empresa and nuevo_estado != 'cancelada':
+            return Response({'error': 'Solo puedes cancelar tu cita.'},
+                            status=status.HTTP_403_FORBIDDEN)
         estado_anterior = cita.estado
         cita.estado = nuevo_estado
         cita.save(update_fields=['estado'])
@@ -715,6 +789,8 @@ class DesactivarDispositivoTokenView(APIView):
 # ==============================
 
 class DashboardEmpresaView(APIView):
+    permission_classes = [EsEmpresa]
+
     def get(self, request):
         today          = datetime.date.today()
         first_of_month = today.replace(day=1)
@@ -767,6 +843,8 @@ class DashboardEmpresaView(APIView):
 
 
 class MisEstablecimientosView(APIView):
+    permission_classes = [EsEmpresa]
+
     def get(self, request):
         qs = Establecimiento.objects.filter(propietario=request.user).select_related('tipo')
         return Response(EstablecimientoSerializer(qs, many=True, context={'request': request}).data)
@@ -780,6 +858,8 @@ class MisEstablecimientosView(APIView):
 
 
 class MiEstablecimientoDetailView(APIView):
+    permission_classes = [EsEmpresa]
+
     def _get(self, pk, user):
         try:
             return Establecimiento.objects.get(pk=pk, propietario=user)
@@ -805,6 +885,8 @@ class MiEstablecimientoDetailView(APIView):
 
 
 class EmpresaCitasView(APIView):
+    permission_classes = [EsEmpresa]
+
     def get(self, request):
         qs = Cita.objects.filter(
             establecimiento__propietario=request.user
@@ -815,6 +897,8 @@ class EmpresaCitasView(APIView):
 
 
 class EmpresaServiciosView(APIView):
+    permission_classes = [EsEmpresa]
+
     def get(self, request):
         ids = Establecimiento.objects.filter(propietario=request.user).values_list('id', flat=True)
         qs  = Servicio.objects.filter(
@@ -834,6 +918,8 @@ class EmpresaServiciosView(APIView):
 
 
 class EmpresaServicioDetailView(APIView):
+    permission_classes = [EsEmpresa]
+
     def _get(self, pk, user):
         try:
             return Servicio.objects.get(pk=pk, establecimiento__propietario=user)
