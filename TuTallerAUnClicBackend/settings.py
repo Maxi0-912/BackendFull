@@ -175,16 +175,21 @@ else:
 
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
 
+# HTTPS=True en un servidor con certificado (Railway, dominio propio).
+# HTTPS=False solo en un servidor interno de pruebas sin certificado
+# (p. ej. Tecnoparque): sin esto, todo se redirigiria a https y no responderia.
+HTTPS = config('HTTPS', default=True, cast=bool)
+
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = HTTPS
+    SESSION_COOKIE_SECURE = HTTPS
+    CSRF_COOKIE_SECURE = HTTPS
     CSRF_TRUSTED_ORIGINS = [
         origin for origin in config('CSRF_TRUSTED_ORIGINS', default='').split(',') if origin
     ]
     # HSTS: el navegador solo hablara HTTPS con el backend (30 dias, sin preload).
-    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=2592000, cast=int)
+    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=2592000, cast=int) if HTTPS else 0
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_REFERRER_POLICY = 'same-origin'
 
